@@ -236,8 +236,21 @@ TaskConfig (任务配置)
 ProjectConfig (工程配置)
 ├── project_id: str                           # 工程ID
 ├── project_name: str                         # 工程名称
-├── api_endpoint: str                         # API端点
-└── credentials: Optional[Dict]               # 认证信息
+├── project_type: ProjectType                 # 工程类型（关键字段）
+├── connection_config: Dict                   # 连接配置（根据类型不同而不同）
+│   ├── [API类型] api_endpoint, auth_token
+│   ├── [FTP类型] ftp_host, ftp_user, ftp_password, log_path
+│   ├── [FILE类型] local_path, log_format
+│   └── [PLATFORM类型] platform_id, platform_endpoint, credentials
+└── metadata: Optional[Dict]                  # 其他元数据
+
+ProjectType (工程类型枚举)
+├── API                                       # 通过API接口获取（公司检查平台）
+├── FTP                                       # 通过FTP获取离线日志
+├── FILE                                      # 本地文件系统
+├── PLATFORM_A                                # 检查平台A
+├── PLATFORM_B                                # 检查平台B
+└── CUSTOM                                    # 自定义类型（可扩展）
 
 ShieldConfig (屏蔽配置)
 ├── id: str                                   # 配置ID
@@ -284,6 +297,47 @@ ProjectFileList (工程文件列表)
 ├── task_info: TaskInfo                       # 任务信息
 ├── files: Set[str]                           # 文件路径集合（归一化后）
 └── raw_files: List[FileEntry]                # 原始文件列表
+
+ProjectAdapter (工程适配器基类 - 抽象)
+├── project_config: ProjectConfig             # 工程配置
+├── fetch_task_info() -> TaskInfo             # 获取任务信息（抽象方法）
+├── fetch_file_list(task_id) -> List[FileEntry]  # 获取文件列表（抽象方法）
+├── validate_connection() -> bool             # 验证连接（抽象方法）
+└── close() -> None                           # 关闭连接（资源清理）
+
+APIProjectAdapter (API工程适配器)
+├── 继承自 ProjectAdapter
+├── http_client: HTTPClient                   # HTTP客户端
+├── api_endpoint: str                         # API端点
+├── auth_token: str                           # 认证令牌
+└── 实现：通过HTTP API获取数据
+
+FTPProjectAdapter (FTP工程适配器)
+├── 继承自 ProjectAdapter
+├── ftp_client: FTPClient                     # FTP客户端
+├── ftp_host: str                             # FTP主机
+├── ftp_credentials: Dict                     # FTP凭证
+├── log_path: str                             # 日志路径
+├── cache_dir: str                            # 本地缓存目录
+└── 实现：从FTP下载日志并解析
+
+FileProjectAdapter (文件工程适配器)
+├── 继承自 ProjectAdapter
+├── local_path: str                           # 本地路径
+├── log_format: str                           # 日志格式（json/csv/txt）
+└── 实现：从本地文件系统读取
+
+PlatformProjectAdapter (平台工程适配器基类)
+├── 继承自 ProjectAdapter
+├── platform_id: str                          # 平台标识
+├── platform_endpoint: str                    # 平台端点
+└── 子类：PlatformAAdapter, PlatformBAdapter等
+
+ProjectAdapterFactory (工程适配器工厂)
+├── _registry: Dict[ProjectType, Type[ProjectAdapter]]  # 适配器注册表
+├── register(type, adapter_class)             # 注册适配器类
+├── create(project_config) -> ProjectAdapter  # 根据配置创建适配器
+└── get_supported_types() -> List[ProjectType]  # 获取支持的类型列表
 ```
 
 ### 2.3 核心业务对象关系
@@ -373,13 +427,28 @@ CompiledRule (编译后的规则)
     PathNormalizer.init(path_prefixes)      # 初始化路径归一化器
     PathMatcher.init(shields, mappings)      # 初始化路径匹配器
     ↓
-[2. 数据获取阶段] (并行)
-    ├─ DataFetcher.fetch_target_projects()
-    │   ↓ (批量API请求)
+[2. 数据获取阶段] (并行，使用工程工厂)
+    for each project_config in target_projects:
+        ↓
+        # 根据工程类型创建对应的适配器
+        adapter = ProjectAdapterFactory.create(project_config)
+        ↓
+        # 适配器示例：
+        # - API类型 → APIProjectAdapter (HTTP API获取)
+        # - FTP类型 → FTPProjectAdapter (FTP下载+解析)
+        # - FILE类型 → FileProjectAdapter (本地文件读取)
+        # - PLATFORM_A → PlatformAAdapter (平台A专用接口)
+        ↓
+        task_info = adapter.fetch_task_info()
+        file_list = adapter.fetch_file_list(task_info.task_id)
+        ↓
+        ProjectFileList(project_config, task_info, file_list)
+
+    并行执行：
+    ├─ target_file_lists = parallel_fetch(target_projects)
     │   └─ List[ProjectFileList]
     │
-    └─ DataFetcher.fetch_baseline_projects()
-        ↓ (批量API请求)
+    └─ baseline_file_lists = parallel_fetch(baseline_projects)
         └─ List[ProjectFileList]
     ↓
 [3. 路径归一化阶段]
@@ -528,54 +597,243 @@ TaskExecutor.execute_all()
 
 ## 4. 扩展点设计
 
-### 4.1 数据提供者扩展点
+### 4.1 工程适配器扩展点（核心扩展点）
+
+**背景说明**:
+不同类型的工程有不同的数据获取方式：
+- 基线工程：公司检查平台（API接口）、离线工程（FTP日志）
+- 待检查工程：不同检查平台、离线工程
+- 工程类型信息存储在工程配置中
 
 **接口定义**:
 ```python
-class DataProvider(ABC):
-    """数据提供者抽象基类"""
+class ProjectAdapter(ABC):
+    """工程适配器抽象基类"""
+
+    def __init__(self, project_config: ProjectConfig):
+        """
+        初始化适配器
+        Args:
+            project_config: 工程配置，包含project_type和connection_config
+        """
+        self.project_config = project_config
+        self.connection_config = project_config.connection_config
 
     @abstractmethod
-    def fetch_task_info(self, project_id: str) -> TaskInfo:
-        """获取项目最新任务信息"""
+    def fetch_task_info(self) -> TaskInfo:
+        """
+        获取工程最新任务信息
+        根据工程类型，可能从API、FTP、本地文件等获取
+        """
         pass
 
     @abstractmethod
-    def fetch_file_list(self, project_id: str, task_id: str) -> List[FileEntry]:
-        """获取任务的文件列表"""
+    def fetch_file_list(self, task_id: str) -> List[FileEntry]:
+        """
+        获取指定任务的文件列表
+        不同工程类型有不同的实现方式
+        """
         pass
 
     @abstractmethod
+    def validate_connection(self) -> bool:
+        """验证连接是否有效"""
+        pass
+
+    def close(self) -> None:
+        """关闭连接，清理资源（可选实现）"""
+        pass
+
     def supports_batch(self) -> bool:
-        """是否支持批量获取"""
-        pass
-
-    @abstractmethod
-    def fetch_batch(self, requests: List[FetchRequest]) -> Dict[str, Any]:
-        """批量获取数据"""
-        pass
+        """是否支持批量获取（可选实现）"""
+        return False
 ```
 
-**扩展场景**:
-- APIDataProvider: 从HTTP API获取数据
-- DatabaseDataProvider: 从数据库直接查询
-- FileDataProvider: 从本地文件读取（用于测试）
-- MockDataProvider: 模拟数据（用于单元测试）
+**内置适配器实现**:
 
-**使用方式**:
+1. **APIProjectAdapter** - API工程适配器
+   ```python
+   class APIProjectAdapter(ProjectAdapter):
+       """通过HTTP API获取数据（公司检查平台）"""
+
+       def __init__(self, project_config: ProjectConfig):
+           super().__init__(project_config)
+           self.api_endpoint = self.connection_config["api_endpoint"]
+           self.auth_token = self.connection_config.get("auth_token")
+           self.http_client = HTTPClient(timeout=30)
+
+       def fetch_task_info(self) -> TaskInfo:
+           # 调用API接口获取最新任务信息
+           response = self.http_client.get(
+               f"{self.api_endpoint}/projects/{self.project_config.project_id}/tasks/latest",
+               headers={"Authorization": f"Bearer {self.auth_token}"}
+           )
+           return TaskInfo.from_api_response(response.json())
+   ```
+
+2. **FTPProjectAdapter** - FTP工程适配器
+   ```python
+   class FTPProjectAdapter(ProjectAdapter):
+       """通过FTP获取离线日志"""
+
+       def __init__(self, project_config: ProjectConfig):
+           super().__init__(project_config)
+           self.ftp_host = self.connection_config["ftp_host"]
+           self.ftp_user = self.connection_config["ftp_user"]
+           self.ftp_password = self.connection_config["ftp_password"]
+           self.log_path = self.connection_config["log_path"]
+           self.cache_dir = f"/tmp/ftp_cache/{self.project_config.project_id}"
+           self.ftp_client = None
+
+       def fetch_task_info(self) -> TaskInfo:
+           # 连接FTP，下载最新的任务日志，解析获取任务信息
+           self._ensure_connected()
+           latest_log = self._find_latest_log(self.log_path)
+           local_file = self._download_file(latest_log)
+           return self._parse_task_info(local_file)
+   ```
+
+3. **FileProjectAdapter** - 文件工程适配器
+   ```python
+   class FileProjectAdapter(ProjectAdapter):
+       """从本地文件系统读取数据"""
+
+       def __init__(self, project_config: ProjectConfig):
+           super().__init__(project_config)
+           self.local_path = self.connection_config["local_path"]
+           self.log_format = self.connection_config.get("log_format", "json")
+
+       def fetch_task_info(self) -> TaskInfo:
+           # 读取本地文件
+           task_file = os.path.join(self.local_path, "task_info.json")
+           with open(task_file, 'r') as f:
+               data = json.load(f)
+           return TaskInfo.from_dict(data)
+   ```
+
+4. **PlatformProjectAdapter** - 平台工程适配器基类
+   ```python
+   class PlatformProjectAdapter(ProjectAdapter):
+       """不同检查平台的适配器基类"""
+
+       def __init__(self, project_config: ProjectConfig):
+           super().__init__(project_config)
+           self.platform_id = self.connection_config["platform_id"]
+           self.platform_endpoint = self.connection_config["platform_endpoint"]
+
+       # 子类实现具体平台的逻辑
+       # - PlatformAAdapter: 平台A的API调用
+       # - PlatformBAdapter: 平台B的API调用
+   ```
+
+**工程适配器工厂**:
 ```python
-# 配置中指定数据提供者类型
-config = TaskConfig(
-    data_provider_type="api",  # 或 "database", "file", "mock"
-    data_provider_config={
-        "endpoint": "https://api.example.com",
-        "auth_token": "xxx"
-    }
-)
+class ProjectAdapterFactory:
+    """工程适配器工厂 - 根据工程类型创建适配器"""
 
-# 运行时动态创建
-provider = DataProviderFactory.create(config)
+    _registry: Dict[ProjectType, Type[ProjectAdapter]] = {}
+
+    @classmethod
+    def register(cls, project_type: ProjectType, adapter_class: Type[ProjectAdapter]):
+        """注册适配器类"""
+        cls._registry[project_type] = adapter_class
+
+    @classmethod
+    def create(cls, project_config: ProjectConfig) -> ProjectAdapter:
+        """根据工程配置创建适配器"""
+        project_type = project_config.project_type
+
+        if project_type not in cls._registry:
+            raise ValueError(f"Unsupported project type: {project_type}")
+
+        adapter_class = cls._registry[project_type]
+        return adapter_class(project_config)
+
+    @classmethod
+    def get_supported_types(cls) -> List[ProjectType]:
+        """获取支持的工程类型列表"""
+        return list(cls._registry.keys())
+
+# 注册内置适配器
+ProjectAdapterFactory.register(ProjectType.API, APIProjectAdapter)
+ProjectAdapterFactory.register(ProjectType.FTP, FTPProjectAdapter)
+ProjectAdapterFactory.register(ProjectType.FILE, FileProjectAdapter)
+ProjectAdapterFactory.register(ProjectType.PLATFORM_A, PlatformAAdapter)
+ProjectAdapterFactory.register(ProjectType.PLATFORM_B, PlatformBAdapter)
 ```
+
+**扩展新工程类型的步骤**:
+
+1. **定义新的工程类型**
+   ```python
+   class ProjectType(Enum):
+       # ...现有类型
+       CUSTOM_PLATFORM = "custom_platform"
+   ```
+
+2. **实现适配器**
+   ```python
+   class CustomPlatformAdapter(ProjectAdapter):
+       def fetch_task_info(self) -> TaskInfo:
+           # 实现自定义逻辑
+           pass
+
+       def fetch_file_list(self, task_id: str) -> List[FileEntry]:
+           # 实现自定义逻辑
+           pass
+   ```
+
+3. **注册适配器**
+   ```python
+   ProjectAdapterFactory.register(
+       ProjectType.CUSTOM_PLATFORM,
+       CustomPlatformAdapter
+   )
+   ```
+
+4. **配置工程**
+   ```python
+   project_config = ProjectConfig(
+       project_id="proj_123",
+       project_name="Custom Project",
+       project_type=ProjectType.CUSTOM_PLATFORM,
+       connection_config={
+           "custom_endpoint": "https://custom.example.com",
+           "custom_key": "xxx"
+       }
+   )
+   ```
+
+**使用示例**:
+```python
+# 待检查工程配置（来自不同平台）
+target_configs = [
+    ProjectConfig(project_type=ProjectType.API, ...),      # 公司平台
+    ProjectConfig(project_type=ProjectType.PLATFORM_A, ...), # 平台A
+    ProjectConfig(project_type=ProjectType.FILE, ...)       # 本地工程
+]
+
+# 基线工程配置
+baseline_configs = [
+    ProjectConfig(project_type=ProjectType.API, ...),      # 公司平台
+    ProjectConfig(project_type=ProjectType.FTP, ...)       # FTP离线日志
+]
+
+# 自动创建适配器并获取数据
+for config in target_configs + baseline_configs:
+    adapter = ProjectAdapterFactory.create(config)
+    task_info = adapter.fetch_task_info()
+    file_list = adapter.fetch_file_list(task_info.task_id)
+    # 处理数据...
+    adapter.close()  # 清理资源
+```
+
+**优势**:
+- ✅ 统一接口：所有工程类型通过相同接口访问
+- ✅ 易于扩展：新增工程类型只需实现适配器并注册
+- ✅ 类型安全：工程类型在配置中明确定义
+- ✅ 职责清晰：每个适配器只负责一种工程类型
+- ✅ 便于测试：可以Mock适配器进行单元测试
 
 ### 4.2 路径匹配策略扩展点
 
@@ -873,7 +1131,11 @@ result = checker.check()  # 插件钩子自动执行
 - ✅ 异步执行耗时分析任务
 
 ### 5.2 可扩展性设计
-- ✅ 基于接口的抽象（数据提供者、匹配策略、分析器等）
+- ✅ **工程适配器工厂**：处理不同类型工程（API、FTP、不同平台）的核心设计
+  - 统一接口抽象不同数据源
+  - 注册机制支持动态扩展新工程类型
+  - 工程类型配置化，便于维护
+- ✅ 基于接口的抽象（匹配策略、分析器、报告生成器等）
 - ✅ 插件系统支持自定义扩展
 - ✅ 策略模式支持多种实现
 - ✅ 工厂模式支持运行时动态创建
@@ -896,7 +1158,8 @@ result = checker.check()  # 插件钩子自动执行
 - **Pydantic**: 数据验证和配置管理
 - **SQLAlchemy**: ORM和数据库操作
 - **Redis-py**: Redis缓存客户端
-- **aiohttp**: 异步HTTP客户端
+- **aiohttp**: 异步HTTP客户端（用于API适配器）
+- **ftplib**: FTP客户端（标准库，用于FTP适配器）
 - **Click**: CLI框架
 
 ### 6.2 可选依赖
@@ -913,6 +1176,7 @@ result = checker.check()  # 插件钩子自动执行
 
 ---
 
-**文档版本**: v1.0
+**文档版本**: v1.1
 **创建日期**: 2026-01-26
 **最后更新**: 2026-01-26
+**更新说明**: 增加工程适配器工厂设计，支持不同类型工程（API、FTP、不同平台）

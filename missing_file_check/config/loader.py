@@ -1,45 +1,47 @@
-"""配置加载器"""
+"""
+Configuration loader for loading and validating task configurations.
 
-from typing import Optional
+Supports loading from dictionaries (for testing) and database (for production).
+"""
+
+from typing import Dict, Any
+
 from missing_file_check.config.models import TaskConfig
 
 
 class ConfigLoader:
-    """配置加载器 - 从数据库/文件加载配置"""
-    
-    def __init__(self, config_source: Optional[str] = None):
+    """Loader for task configurations with validation."""
+
+    @staticmethod
+    def load_from_dict(config_dict: Dict[str, Any]) -> TaskConfig:
         """
-        初始化配置加载器
-        
+        Load configuration from a dictionary.
+
         Args:
-            config_source: 配置源（数据库连接字符串或文件路径）
-        """
-        self.config_source = config_source
-    
-    def load(self, task_id: str) -> TaskConfig:
-        """
-        加载任务配置
-        
-        Args:
-            task_id: 任务ID
-            
+            config_dict: Configuration dictionary matching TaskConfig schema
+
         Returns:
-            TaskConfig: 任务配置对象
-            
+            Validated TaskConfig instance
+
         Raises:
-            ValueError: 任务不存在或配置无效
+            ValidationError: If configuration is invalid
         """
-        # TODO: 实现从数据库或文件加载配置的逻辑
-        raise NotImplementedError("ConfigLoader.load() not implemented yet")
-    
-    def load_from_dict(self, config_dict: dict) -> TaskConfig:
+        return TaskConfig.model_validate(config_dict)
+
+    @staticmethod
+    def load_from_database(task_id: str) -> TaskConfig:
         """
-        从字典加载配置
-        
+        Load configuration from database (to be implemented).
+
         Args:
-            config_dict: 配置字典
-            
+            task_id: Task identifier
+
         Returns:
-            TaskConfig: 任务配置对象
+            Validated TaskConfig instance
+
+        Raises:
+            NotImplementedError: Database loading not yet implemented
         """
-        return TaskConfig(**config_dict)
+        raise NotImplementedError(
+            "Database configuration loading will be implemented in Phase 2"
+        )

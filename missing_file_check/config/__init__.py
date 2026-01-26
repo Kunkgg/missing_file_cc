@@ -1,23 +1,19 @@
-"""配置管理层"""
+"""Configuration module for task and project configuration."""
 
 from missing_file_check.config.models import (
     TaskConfig,
     ProjectConfig,
     ProjectType,
-    ShieldConfig,
-    PathMappingConfig,
+    ShieldRule,
+    MappingRule,
     PathPrefixConfig,
 )
-from missing_file_check.config.loader import ConfigLoader
-from missing_file_check.config.validator import ConfigValidator
 
 __all__ = [
     "TaskConfig",
     "ProjectConfig",
     "ProjectType",
-    "ShieldConfig",
-    "PathMappingConfig",
+    "ShieldRule",
+    "MappingRule",
     "PathPrefixConfig",
-    "ConfigLoader",
-    "ConfigValidator",
 ]

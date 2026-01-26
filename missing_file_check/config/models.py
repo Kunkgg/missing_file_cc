@@ -1,101 +1,117 @@
-"""配置数据模型"""
+"""
+Configuration data models using Pydantic for validation.
+
+This module defines all configuration objects used throughout the system.
+"""
 
 from enum import Enum
-from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProjectType(str, Enum):
-    """工程类型枚举"""
-    API = "api"  # 通过API接口获取（公司检查平台）
-    FTP = "ftp"  # 通过FTP获取离线日志
-    FILE = "file"  # 本地文件系统
-    PLATFORM_A = "platform_a"  # 检查平台A
-    PLATFORM_B = "platform_b"  # 检查平台B
-    CUSTOM = "custom"  # 自定义类型
+    """Project type enumeration distinguishing target and baseline projects."""
+
+    TARGET_PROJECT_API = "target_project_api"
+    BASELINE_PROJECT_API = "baseline_project_api"
+    FTP = "ftp"
+    LOCAL = "local"
 
 
 class ProjectConfig(BaseModel):
-    """工程配置"""
-    project_id: str = Field(..., description="工程ID")
-    project_name: str = Field(..., description="工程名称")
-    project_type: ProjectType = Field(..., description="工程类型")
-    connection_config: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="连接配置（根据类型不同而不同）"
-    )
-    metadata: Optional[Dict[str, Any]] = Field(
-        default=None, 
-        description="其他元数据"
+    """Project configuration with connection details."""
+
+    project_id: str = Field(..., description="Unique project identifier")
+    project_name: str = Field(..., description="Project display name")
+    project_type: ProjectType = Field(..., description="Type of project data source")
+    connection: Dict[str, Any] = Field(
+        ..., description="Connection configuration (varies by project_type)"
     )
 
+    @field_validator("connection")
+    @classmethod
+    def validate_connection(cls, v: Dict[str, Any], info) -> Dict[str, Any]:
+        """Validate connection config based on project type."""
+        project_type = info.data.get("project_type")
 
-class ShieldConfig(BaseModel):
-    """屏蔽配置"""
-    id: str = Field(..., description="配置ID")
-    pattern: str = Field(..., description="路径模式（支持正则/通配符）")
-    remark: str = Field(default="", description="备注信息")
-    enabled: bool = Field(default=True, description="是否启用")
+        if project_type in (ProjectType.TARGET_PROJECT_API, ProjectType.BASELINE_PROJECT_API):
+            required = {"api_endpoint", "token", "project_key"}
+            if not required.issubset(v.keys()):
+                raise ValueError(f"API connection requires: {required}")
+
+        elif project_type == ProjectType.FTP:
+            required = {"host", "username", "password", "base_path"}
+            if not required.issubset(v.keys()):
+                raise ValueError(f"FTP connection requires: {required}")
+
+        elif project_type == ProjectType.LOCAL:
+            required = {"base_path"}
+            if not required.issubset(v.keys()):
+                raise ValueError(f"Local connection requires: {required}")
+
+        return v
 
 
-class PathMappingConfig(BaseModel):
-    """路径映射配置"""
-    id: str = Field(..., description="配置ID")
-    source_pattern: str = Field(..., description="源路径模式")
-    target_pattern: str = Field(..., description="目标路径模式")
-    remark: str = Field(default="", description="备注信息")
-    enabled: bool = Field(default=True, description="是否启用")
+class ShieldRule(BaseModel):
+    """Shield rule for excluding files from missing file detection."""
+
+    id: str = Field(..., description="Unique rule identifier")
+    pattern: str = Field(..., description="Path pattern (regex/glob)")
+    remark: str = Field(default="", description="Rule description or reason")
+
+    # Note: No 'enabled' field - disabled rules are filtered during config loading
+
+
+class MappingRule(BaseModel):
+    """Path mapping rule for handling renamed or relocated files."""
+
+    id: str = Field(..., description="Unique rule identifier")
+    source_pattern: str = Field(..., description="Source path pattern")
+    target_pattern: str = Field(..., description="Target path pattern")
+    remark: str = Field(default="", description="Rule description or reason")
+
+    # Note: No 'enabled' field - disabled rules are filtered during config loading
 
 
 class PathPrefixConfig(BaseModel):
-    """路径前缀配置"""
-    project_id: str = Field(..., description="工程ID")
-    prefix: str = Field(..., description="路径前缀")
-    trim_prefix: bool = Field(default=True, description="是否移除前缀")
+    """Path prefix configuration for normalizing absolute paths to relative paths."""
 
-
-class ComponentInfo(BaseModel):
-    """组件信息"""
-    component_id: str = Field(..., description="组件ID")
-    component_name: str = Field(..., description="组件名称")
-
-
-class ProjectMapping(BaseModel):
-    """工程映射关系"""
-    target_projects: List[str] = Field(
-        default_factory=list, 
-        description="待检查工程ID列表"
-    )
-    baseline_projects: List[str] = Field(
-        default_factory=list, 
-        description="基线工程ID列表"
-    )
+    project_id: str = Field(..., description="Project this prefix applies to")
+    prefix: str = Field(..., description="Path prefix to strip")
 
 
 class TaskConfig(BaseModel):
-    """任务配置"""
-    task_id: str = Field(..., description="任务ID")
-    components: List[ComponentInfo] = Field(
-        default_factory=list, 
-        description="关联的组件信息"
+    """Root configuration object for a scanning task."""
+
+    task_id: str = Field(..., description="Unique task identifier")
+    target_projects: List[ProjectConfig] = Field(
+        ..., description="List of target projects to check"
     )
-    project_mappings: List[ProjectMapping] = Field(
-        default_factory=list, 
-        description="工程映射关系"
+    baseline_projects: List[ProjectConfig] = Field(
+        ..., description="List of baseline projects for comparison"
     )
-    shield_configs: List[ShieldConfig] = Field(
-        default_factory=list, 
-        description="屏蔽配置列表"
+    baseline_selector_strategy: str = Field(
+        default="latest_success",
+        description="Strategy name for selecting baseline projects",
     )
-    path_mappings: List[PathMappingConfig] = Field(
-        default_factory=list, 
-        description="路径映射配置列表"
+    baseline_selector_params: Optional[Dict[str, Any]] = Field(
+        default=None, description="Optional parameters for baseline selector strategy"
+    )
+    shield_rules: List[ShieldRule] = Field(
+        default_factory=list, description="Shield rules (only enabled rules loaded)"
+    )
+    mapping_rules: List[MappingRule] = Field(
+        default_factory=list, description="Path mapping rules (only enabled rules loaded)"
     )
     path_prefixes: List[PathPrefixConfig] = Field(
-        default_factory=list, 
-        description="路径前缀配置列表"
+        default_factory=list, description="Path prefix configurations for normalization"
     )
-    project_configs: Dict[str, ProjectConfig] = Field(
-        default_factory=dict,
-        description="工程配置字典，key为project_id"
-    )
+
+    @field_validator("target_projects", "baseline_projects")
+    @classmethod
+    def validate_projects_not_empty(cls, v: List[ProjectConfig]) -> List[ProjectConfig]:
+        """Ensure at least one project is configured."""
+        if not v:
+            raise ValueError("At least one project must be configured")
+        return v

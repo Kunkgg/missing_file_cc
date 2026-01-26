@@ -29,19 +29,20 @@ class ConfigLoader:
         return TaskConfig.model_validate(config_dict)
 
     @staticmethod
-    def load_from_database(task_id: str) -> TaskConfig:
+    def load_from_database(task_id: int) -> TaskConfig:
         """
-        Load configuration from database (to be implemented).
+        Load configuration from database.
 
         Args:
-            task_id: Task identifier
+            task_id: Task identifier (integer ID)
 
         Returns:
             Validated TaskConfig instance
 
         Raises:
-            NotImplementedError: Database loading not yet implemented
+            ValueError: If task not found or configuration invalid
         """
-        raise NotImplementedError(
-            "Database configuration loading will be implemented in Phase 2"
-        )
+        from missing_file_check.config.database_loader import DatabaseConfigLoader
+
+        loader = DatabaseConfigLoader()
+        return loader.load(task_id)

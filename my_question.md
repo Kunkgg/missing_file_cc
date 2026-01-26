@@ -37,5 +37,60 @@ ProjectType
   6. 不做任何匹配限制
 
 
+---
+准备开始第3阶段前， 我有一些信息需要补充:
+
+1. 来自不同平台的共信息记录在不同的数据表中, 我打算用类似下面的结构记录任务+待检查工程+基线基线工程的关系， 合理么？
+
+```
+Table missing_file_tasks {
+  id integer
+  group_id integer
+  search_version varchar
+  product varchar
+  tool varchar
+  source_type varchar
+  data_type varchar
+  created_at datetime
+  update_at datetime
+  is_active bool
+}
+
+Table missing_file_project_relation {
+  id integer
+  task_id integer
+  project_type varchar
+  project_id integer
+}
+
+Table platform_a_target_project {
+  id integer
+  project_name varchar
+  c_version varchar
+}
+
+Table platform_b_target_project {
+  id integer
+  job_name varchar
+  branch varchar
+}
+
+Table baseline_project {
+  id integer
+  data_source varchar
+  project_name varchar
+  c_version varchar
+  job_name varchar
+}
+```
+2. 我们实际工程使用中不会再数据库给表之间建立数据库中的外键约束，通过应用程序实现
 
 
+
+--- 
+
+1. MySQL, 使用 SQLAlchemy, 连接配置通过环境变量传入
+2. 采纳, 暂无调整, JSON 字段暂不支持
+3. 先生成展位信息或者抽取成配置变量，有 missing_file_details 表的历史记录
+4. 两者都要，对象存储是公司搭建的，实现代码可以先空着，设计好接口就可以了。 使用上传单个文件或者上传指定目录实现两个接口实现该功能
+5. 先提供接口

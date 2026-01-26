@@ -1,0 +1,54 @@
+{
+  "build_info": {
+    "build_no": "BUILD-BASELINE-001",
+    "build_status": "success",
+    "branch": "main",
+    "commit_id": "abc123def456",
+    "b_version": "1.0.0",
+    "build_url": "https://example.com/builds/baseline-001",
+    "start_time": "2026-01-27T00:00:00Z",
+    "end_time": "2026-01-27T00:45:00Z"
+  },
+  "files": [
+    {
+      "path": "/baseline/src/main.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/src/utils.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/src/config.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/src/database.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/tests/test_main.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/tests/test_utils.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/tests/test_database.py",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/docs/README.md",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/docs/API.md",
+      "status": "success"
+    },
+    {
+      "path": "/baseline/README.md",
+      "status": "success"
+    }
+  ]
+}

@@ -1,0 +1,4158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缺失文件扫描报告 - REPORT-DEMO-001</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header .meta { opacity: 0.9; font-size: 14px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid #667eea;
+        }
+        .stat-card.missed { border-left-color: #f56565; }
+        .stat-card.shielded { border-left-color: #48bb78; }
+        .stat-card.remapped { border-left-color: #4299e1; }
+        .stat-card.failed { border-left-color: #ed8936; }
+        .stat-number { font-size: 36px; font-weight: bold; color: #667eea; }
+        .stat-label { color: #718096; margin-top: 5px; font-size: 14px; }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        /* 工程信息表格 */
+        .project-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .project-table th,
+        .project-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .project-table th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .project-table td {
+            font-size: 14px;
+        }
+        .project-table tr:hover {
+            background: #f7fafc;
+        }
+        .project-link {
+            color: #4299e1;
+            text-decoration: none;
+        }
+        .project-link:hover {
+            text-decoration: underline;
+        }
+        .project-type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .project-type-badge.target {
+            background: #fed7d7;
+            color: #c53030;
+        }
+        .project-type-badge.baseline {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        /* 文件列表优化 */
+        .file-list { list-style: none; }
+        .file-item {
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        .file-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-color: #cbd5e0;
+        }
+        .file-item.hidden {
+            display: none;
+        }
+        .file-path {
+            font-family: "Monaco", "Menlo", "Courier New", monospace;
+            color: #2d3748;
+            font-weight: 500;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        .file-meta {
+            font-size: 13px;
+            color: #718096;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.missed { background: #fed7d7; color: #c53030; }
+        .badge.shielded { background: #c6f6d5; color: #2f855a; }
+        .badge.remapped { background: #bee3f8; color: #2c5282; }
+        .badge.failed { background: #feebc8; color: #c05621; }
+
+        /* 展开按钮 */
+        .show-more-btn {
+            display: inline-block;
+            margin: 15px 0;
+            padding: 10px 20px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .show-more-btn:hover {
+            background: #3182ce;
+        }
+        .show-more-btn.hidden {
+            display: none;
+        }
+
+        .file-count-info {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 4px;
+        }
+
+        .footer {
+            text-align: center;
+            color: #a0aec0;
+            margin-top: 40px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 缺失文件扫描报告</h1>
+            <div class="meta">
+                任务ID: REPORT-DEMO-001 |
+                扫描时间: 2026-01-27 23:48:54
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card missed">
+                <div class="stat-number">250</div>
+                <div class="stat-label">🔴 真实缺失（需处理）</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-number">0</div>
+                <div class="stat-label">❌ 扫描失败（需处理）</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #48bb78;">
+                <div class="stat-number" style="color: #48bb78;">0</div>
+                <div class="stat-label">✅ 已通过（已审核）</div>
+            </div>
+            <div class="stat-card shielded">
+                <div class="stat-number">0</div>
+                <div class="stat-label">🛡️ 已屏蔽</div>
+            </div>
+            <div class="stat-card remapped">
+                <div class="stat-number">0</div>
+                <div class="stat-label">🔄 已映射</div>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="margin-top: 10px;">
+            <div class="stat-card">
+                <div class="stat-number">100</div>
+                <div class="stat-label">📁 目标工程文件总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">300</div>
+                <div class="stat-label">📚 基线工程文件总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">1</div>
+                <div class="stat-label">🎯 目标工程数量</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">1</div>
+                <div class="stat-label">📊 基线工程数量</div>
+            </div>
+        </div>
+
+        <!-- 工程信息表格 -->
+        
+        <div class="section">
+            <h2>🏗️ 工程详细信息</h2>
+
+            
+            <h3 style="margin: 15px 0 10px 0; color: #c53030;">🎯 待检查工程</h3>
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>工程 ID</th>
+                        <th>Build No</th>
+                        <th>分支</th>
+                        <th>Commit ID</th>
+                        <th>版本</th>
+                        <th>状态</th>
+                        <th>链接</th>
+                    </tr>
+                </thead>
+                <tbody>
+                
+                    <tr>
+                        <td><strong>target-project-1</strong></td>
+                        <td><code>BUILD-2026-001</code></td>
+                        <td>main</td>
+                        <td><code>abc123de</code></td>
+                        <td>2.0.0</td>
+                        <td>
+                            
+                            <span style="color: #48bb78;">✓ 成功</span>
+                            
+                        </td>
+                        <td>
+                            
+                            <a href="https://build.example.com/target/001" class="project-link" target="_blank">查看构建 →</a>
+                            
+                        </td>
+                    </tr>
+                
+                </tbody>
+            </table>
+            
+
+            
+            <h3 style="margin: 25px 0 10px 0; color: #2c5282;">📊 基线工程</h3>
+            <table class="project-table">
+                <thead>
+                    <tr>
+                        <th>工程 ID</th>
+                        <th>Build No</th>
+                        <th>分支</th>
+                        <th>Commit ID</th>
+                        <th>版本</th>
+                        <th>状态</th>
+                        <th>链接</th>
+                    </tr>
+                </thead>
+                <tbody>
+                
+                    <tr>
+                        <td><strong>baseline-project-1</strong></td>
+                        <td><code>BUILD-2025-999</code></td>
+                        <td>main</td>
+                        <td><code>abc123de</code></td>
+                        <td>1.5.0</td>
+                        <td>
+                            
+                            <span style="color: #48bb78;">✓ 成功</span>
+                            
+                        </td>
+                        <td>
+                            
+                            <a href="https://build.example.com/baseline/999" class="project-link" target="_blank">查看构建 →</a>
+                            
+                        </td>
+                    </tr>
+                
+                </tbody>
+            </table>
+            
+        </div>
+        
+
+        <!-- 文件列表 - 优化性能 -->
+        
+        
+        
+        <div class="section">
+            <h2>🔴 真实缺失文件 (250)</h2>
+
+            
+            <div class="file-count-info">
+                ⚠️ 文件数量较多（250 个），默认显示前 100 个。点击"显示更多"按钮加载剩余文件。
+            </div>
+            
+
+            <ul class="file-list" id="file-list-missed">
+            
+                <li class="file-item " data-index="1">
+                    <div class="file-path">/baseline/src/file101.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="2">
+                    <div class="file-path">/baseline/src/file102.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="3">
+                    <div class="file-path">/baseline/src/file103.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="4">
+                    <div class="file-path">/baseline/src/file104.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="5">
+                    <div class="file-path">/baseline/src/file105.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="6">
+                    <div class="file-path">/baseline/src/file106.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="7">
+                    <div class="file-path">/baseline/src/file107.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="8">
+                    <div class="file-path">/baseline/src/file108.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="9">
+                    <div class="file-path">/baseline/src/file109.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="10">
+                    <div class="file-path">/baseline/src/file110.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="11">
+                    <div class="file-path">/baseline/src/file111.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="12">
+                    <div class="file-path">/baseline/src/file112.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="13">
+                    <div class="file-path">/baseline/src/file113.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="14">
+                    <div class="file-path">/baseline/src/file114.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="15">
+                    <div class="file-path">/baseline/src/file115.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="16">
+                    <div class="file-path">/baseline/src/file116.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="17">
+                    <div class="file-path">/baseline/src/file117.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="18">
+                    <div class="file-path">/baseline/src/file118.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="19">
+                    <div class="file-path">/baseline/src/file119.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="20">
+                    <div class="file-path">/baseline/src/file120.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="21">
+                    <div class="file-path">/baseline/src/file121.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="22">
+                    <div class="file-path">/baseline/src/file122.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="23">
+                    <div class="file-path">/baseline/src/file123.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="24">
+                    <div class="file-path">/baseline/src/file124.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="25">
+                    <div class="file-path">/baseline/src/file125.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="26">
+                    <div class="file-path">/baseline/src/file126.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="27">
+                    <div class="file-path">/baseline/src/file127.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="28">
+                    <div class="file-path">/baseline/src/file128.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="29">
+                    <div class="file-path">/baseline/src/file129.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="30">
+                    <div class="file-path">/baseline/src/file130.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="31">
+                    <div class="file-path">/baseline/src/file131.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="32">
+                    <div class="file-path">/baseline/src/file132.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="33">
+                    <div class="file-path">/baseline/src/file133.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="34">
+                    <div class="file-path">/baseline/src/file134.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="35">
+                    <div class="file-path">/baseline/src/file135.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="36">
+                    <div class="file-path">/baseline/src/file136.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="37">
+                    <div class="file-path">/baseline/src/file137.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="38">
+                    <div class="file-path">/baseline/src/file138.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="39">
+                    <div class="file-path">/baseline/src/file139.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="40">
+                    <div class="file-path">/baseline/src/file140.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="41">
+                    <div class="file-path">/baseline/src/file141.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="42">
+                    <div class="file-path">/baseline/src/file142.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="43">
+                    <div class="file-path">/baseline/src/file143.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="44">
+                    <div class="file-path">/baseline/src/file144.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="45">
+                    <div class="file-path">/baseline/src/file145.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="46">
+                    <div class="file-path">/baseline/src/file146.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="47">
+                    <div class="file-path">/baseline/src/file147.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="48">
+                    <div class="file-path">/baseline/src/file148.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="49">
+                    <div class="file-path">/baseline/src/file149.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="50">
+                    <div class="file-path">/baseline/src/file150.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="51">
+                    <div class="file-path">/baseline/src/file151.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="52">
+                    <div class="file-path">/baseline/src/file152.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="53">
+                    <div class="file-path">/baseline/src/file153.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="54">
+                    <div class="file-path">/baseline/src/file154.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="55">
+                    <div class="file-path">/baseline/src/file155.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="56">
+                    <div class="file-path">/baseline/src/file156.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="57">
+                    <div class="file-path">/baseline/src/file157.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="58">
+                    <div class="file-path">/baseline/src/file158.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="59">
+                    <div class="file-path">/baseline/src/file159.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="60">
+                    <div class="file-path">/baseline/src/file160.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="61">
+                    <div class="file-path">/baseline/src/file161.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="62">
+                    <div class="file-path">/baseline/src/file162.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="63">
+                    <div class="file-path">/baseline/src/file163.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="64">
+                    <div class="file-path">/baseline/src/file164.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="65">
+                    <div class="file-path">/baseline/src/file165.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="66">
+                    <div class="file-path">/baseline/src/file166.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="67">
+                    <div class="file-path">/baseline/src/file167.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="68">
+                    <div class="file-path">/baseline/src/file168.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="69">
+                    <div class="file-path">/baseline/src/file169.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="70">
+                    <div class="file-path">/baseline/src/file170.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="71">
+                    <div class="file-path">/baseline/src/file171.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="72">
+                    <div class="file-path">/baseline/src/file172.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="73">
+                    <div class="file-path">/baseline/src/file173.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="74">
+                    <div class="file-path">/baseline/src/file174.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="75">
+                    <div class="file-path">/baseline/src/file175.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="76">
+                    <div class="file-path">/baseline/src/file176.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="77">
+                    <div class="file-path">/baseline/src/file177.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="78">
+                    <div class="file-path">/baseline/src/file178.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="79">
+                    <div class="file-path">/baseline/src/file179.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="80">
+                    <div class="file-path">/baseline/src/file180.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="81">
+                    <div class="file-path">/baseline/src/file181.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="82">
+                    <div class="file-path">/baseline/src/file182.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="83">
+                    <div class="file-path">/baseline/src/file183.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="84">
+                    <div class="file-path">/baseline/src/file184.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="85">
+                    <div class="file-path">/baseline/src/file185.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="86">
+                    <div class="file-path">/baseline/src/file186.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="87">
+                    <div class="file-path">/baseline/src/file187.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="88">
+                    <div class="file-path">/baseline/src/file188.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="89">
+                    <div class="file-path">/baseline/src/file189.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="90">
+                    <div class="file-path">/baseline/src/file190.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="91">
+                    <div class="file-path">/baseline/src/file191.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="92">
+                    <div class="file-path">/baseline/src/file192.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="93">
+                    <div class="file-path">/baseline/src/file193.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="94">
+                    <div class="file-path">/baseline/src/file194.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="95">
+                    <div class="file-path">/baseline/src/file195.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="96">
+                    <div class="file-path">/baseline/src/file196.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="97">
+                    <div class="file-path">/baseline/src/file197.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="98">
+                    <div class="file-path">/baseline/src/file198.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="99">
+                    <div class="file-path">/baseline/src/file199.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item " data-index="100">
+                    <div class="file-path">/baseline/src/file200.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="101">
+                    <div class="file-path">/baseline/src/file201.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="102">
+                    <div class="file-path">/baseline/src/file202.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="103">
+                    <div class="file-path">/baseline/src/file203.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="104">
+                    <div class="file-path">/baseline/src/file204.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="105">
+                    <div class="file-path">/baseline/src/file205.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="106">
+                    <div class="file-path">/baseline/src/file206.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="107">
+                    <div class="file-path">/baseline/src/file207.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="108">
+                    <div class="file-path">/baseline/src/file208.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="109">
+                    <div class="file-path">/baseline/src/file209.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="110">
+                    <div class="file-path">/baseline/src/file210.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="111">
+                    <div class="file-path">/baseline/src/file211.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="112">
+                    <div class="file-path">/baseline/src/file212.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="113">
+                    <div class="file-path">/baseline/src/file213.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="114">
+                    <div class="file-path">/baseline/src/file214.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="115">
+                    <div class="file-path">/baseline/src/file215.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="116">
+                    <div class="file-path">/baseline/src/file216.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="117">
+                    <div class="file-path">/baseline/src/file217.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="118">
+                    <div class="file-path">/baseline/src/file218.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="119">
+                    <div class="file-path">/baseline/src/file219.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="120">
+                    <div class="file-path">/baseline/src/file220.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="121">
+                    <div class="file-path">/baseline/src/file221.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="122">
+                    <div class="file-path">/baseline/src/file222.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="123">
+                    <div class="file-path">/baseline/src/file223.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="124">
+                    <div class="file-path">/baseline/src/file224.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="125">
+                    <div class="file-path">/baseline/src/file225.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="126">
+                    <div class="file-path">/baseline/src/file226.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="127">
+                    <div class="file-path">/baseline/src/file227.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="128">
+                    <div class="file-path">/baseline/src/file228.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="129">
+                    <div class="file-path">/baseline/src/file229.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="130">
+                    <div class="file-path">/baseline/src/file230.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="131">
+                    <div class="file-path">/baseline/src/file231.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="132">
+                    <div class="file-path">/baseline/src/file232.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="133">
+                    <div class="file-path">/baseline/src/file233.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="134">
+                    <div class="file-path">/baseline/src/file234.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="135">
+                    <div class="file-path">/baseline/src/file235.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="136">
+                    <div class="file-path">/baseline/src/file236.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="137">
+                    <div class="file-path">/baseline/src/file237.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="138">
+                    <div class="file-path">/baseline/src/file238.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="139">
+                    <div class="file-path">/baseline/src/file239.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="140">
+                    <div class="file-path">/baseline/src/file240.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="141">
+                    <div class="file-path">/baseline/src/file241.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="142">
+                    <div class="file-path">/baseline/src/file242.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="143">
+                    <div class="file-path">/baseline/src/file243.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="144">
+                    <div class="file-path">/baseline/src/file244.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="145">
+                    <div class="file-path">/baseline/src/file245.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="146">
+                    <div class="file-path">/baseline/src/file246.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="147">
+                    <div class="file-path">/baseline/src/file247.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="148">
+                    <div class="file-path">/baseline/src/file248.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="149">
+                    <div class="file-path">/baseline/src/file249.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="150">
+                    <div class="file-path">/baseline/src/file250.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="151">
+                    <div class="file-path">/baseline/src/file251.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="152">
+                    <div class="file-path">/baseline/src/file252.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="153">
+                    <div class="file-path">/baseline/src/file253.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="154">
+                    <div class="file-path">/baseline/src/file254.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="155">
+                    <div class="file-path">/baseline/src/file255.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="156">
+                    <div class="file-path">/baseline/src/file256.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="157">
+                    <div class="file-path">/baseline/src/file257.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="158">
+                    <div class="file-path">/baseline/src/file258.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="159">
+                    <div class="file-path">/baseline/src/file259.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="160">
+                    <div class="file-path">/baseline/src/file260.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="161">
+                    <div class="file-path">/baseline/src/file261.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="162">
+                    <div class="file-path">/baseline/src/file262.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="163">
+                    <div class="file-path">/baseline/src/file263.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="164">
+                    <div class="file-path">/baseline/src/file264.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="165">
+                    <div class="file-path">/baseline/src/file265.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="166">
+                    <div class="file-path">/baseline/src/file266.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="167">
+                    <div class="file-path">/baseline/src/file267.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="168">
+                    <div class="file-path">/baseline/src/file268.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="169">
+                    <div class="file-path">/baseline/src/file269.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="170">
+                    <div class="file-path">/baseline/src/file270.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="171">
+                    <div class="file-path">/baseline/src/file271.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="172">
+                    <div class="file-path">/baseline/src/file272.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="173">
+                    <div class="file-path">/baseline/src/file273.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="174">
+                    <div class="file-path">/baseline/src/file274.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="175">
+                    <div class="file-path">/baseline/src/file275.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="176">
+                    <div class="file-path">/baseline/src/file276.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="177">
+                    <div class="file-path">/baseline/src/file277.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="178">
+                    <div class="file-path">/baseline/src/file278.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="179">
+                    <div class="file-path">/baseline/src/file279.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="180">
+                    <div class="file-path">/baseline/src/file280.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="181">
+                    <div class="file-path">/baseline/src/file281.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="182">
+                    <div class="file-path">/baseline/src/file282.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="183">
+                    <div class="file-path">/baseline/src/file283.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="184">
+                    <div class="file-path">/baseline/src/file284.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="185">
+                    <div class="file-path">/baseline/src/file285.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="186">
+                    <div class="file-path">/baseline/src/file286.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="187">
+                    <div class="file-path">/baseline/src/file287.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="188">
+                    <div class="file-path">/baseline/src/file288.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="189">
+                    <div class="file-path">/baseline/src/file289.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="190">
+                    <div class="file-path">/baseline/src/file290.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="191">
+                    <div class="file-path">/baseline/src/file291.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="192">
+                    <div class="file-path">/baseline/src/file292.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="193">
+                    <div class="file-path">/baseline/src/file293.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="194">
+                    <div class="file-path">/baseline/src/file294.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="195">
+                    <div class="file-path">/baseline/src/file295.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="196">
+                    <div class="file-path">/baseline/src/file296.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="197">
+                    <div class="file-path">/baseline/src/file297.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="198">
+                    <div class="file-path">/baseline/src/file298.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="199">
+                    <div class="file-path">/baseline/src/file299.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="200">
+                    <div class="file-path">/baseline/src/file300.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="201">
+                    <div class="file-path">/baseline/src/file301.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="202">
+                    <div class="file-path">/baseline/src/file302.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="203">
+                    <div class="file-path">/baseline/src/file303.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="204">
+                    <div class="file-path">/baseline/src/file304.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="205">
+                    <div class="file-path">/baseline/src/file305.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="206">
+                    <div class="file-path">/baseline/src/file306.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="207">
+                    <div class="file-path">/baseline/src/file307.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="208">
+                    <div class="file-path">/baseline/src/file308.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="209">
+                    <div class="file-path">/baseline/src/file309.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="210">
+                    <div class="file-path">/baseline/src/file310.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="211">
+                    <div class="file-path">/baseline/src/file311.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="212">
+                    <div class="file-path">/baseline/src/file312.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="213">
+                    <div class="file-path">/baseline/src/file313.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="214">
+                    <div class="file-path">/baseline/src/file314.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="215">
+                    <div class="file-path">/baseline/src/file315.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="216">
+                    <div class="file-path">/baseline/src/file316.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="217">
+                    <div class="file-path">/baseline/src/file317.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="218">
+                    <div class="file-path">/baseline/src/file318.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="219">
+                    <div class="file-path">/baseline/src/file319.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="220">
+                    <div class="file-path">/baseline/src/file320.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="221">
+                    <div class="file-path">/baseline/src/file321.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="222">
+                    <div class="file-path">/baseline/src/file322.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="223">
+                    <div class="file-path">/baseline/src/file323.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="224">
+                    <div class="file-path">/baseline/src/file324.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="225">
+                    <div class="file-path">/baseline/src/file325.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="226">
+                    <div class="file-path">/baseline/src/file326.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="227">
+                    <div class="file-path">/baseline/src/file327.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="228">
+                    <div class="file-path">/baseline/src/file328.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="229">
+                    <div class="file-path">/baseline/src/file329.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="230">
+                    <div class="file-path">/baseline/src/file330.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="231">
+                    <div class="file-path">/baseline/src/file331.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="232">
+                    <div class="file-path">/baseline/src/file332.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="233">
+                    <div class="file-path">/baseline/src/file333.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="234">
+                    <div class="file-path">/baseline/src/file334.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="235">
+                    <div class="file-path">/baseline/src/file335.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="236">
+                    <div class="file-path">/baseline/src/file336.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="237">
+                    <div class="file-path">/baseline/src/file337.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="238">
+                    <div class="file-path">/baseline/src/file338.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="239">
+                    <div class="file-path">/baseline/src/file339.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="240">
+                    <div class="file-path">/baseline/src/file340.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="241">
+                    <div class="file-path">/baseline/src/file341.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="242">
+                    <div class="file-path">/baseline/src/file342.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="243">
+                    <div class="file-path">/baseline/src/file343.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="244">
+                    <div class="file-path">/baseline/src/file344.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="245">
+                    <div class="file-path">/baseline/src/file345.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="246">
+                    <div class="file-path">/baseline/src/file346.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="247">
+                    <div class="file-path">/baseline/src/file347.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="248">
+                    <div class="file-path">/baseline/src/file348.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="249">
+                    <div class="file-path">/baseline/src/file349.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+                <li class="file-item hidden" data-index="250">
+                    <div class="file-path">/baseline/src/file350.py</div>
+                    <div class="file-meta">
+                        <span class="badge missed">MISSED</span>
+                        
+                        <span>📦 来源: baseline-project-1</span>
+                        
+                        
+                        
+                        
+                        
+                        
+                    </div>
+                </li>
+            
+            </ul>
+
+            
+            <button class="show-more-btn" onclick="showMore('missed', 250)">
+                显示更多 (还有 150 个)
+            </button>
+            
+        </div>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+        <div class="footer">
+            <p>缺失文件扫描工具 | 生成时间: 2026-01-27 23:48:54</p>
+            <p style="margin-top: 10px; font-size: 12px;">
+                💡 提示：如需查看完整文件列表，请下载 JSON 报告
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 分批显示文件列表，避免一次性渲染过多 DOM 元素导致卡顿
+        const LOAD_BATCH_SIZE = 100;
+        const loadedCount = {};
+
+        function showMore(status, totalCount) {
+            const listId = 'file-list-' + status;
+            const list = document.getElementById(listId);
+            const hiddenItems = list.querySelectorAll('.file-item.hidden');
+
+            // 初始化已加载数量
+            if (!loadedCount[status]) {
+                loadedCount[status] = 100;
+            }
+
+            // 计算本次要显示的数量
+            const remainingCount = totalCount - loadedCount[status];
+            const batchSize = Math.min(LOAD_BATCH_SIZE, remainingCount);
+
+            // 显示下一批
+            let shown = 0;
+            for (let i = 0; i < hiddenItems.length && shown < batchSize; i++) {
+                hiddenItems[i].classList.remove('hidden');
+                shown++;
+            }
+
+            loadedCount[status] += shown;
+
+            // 更新按钮
+            const button = event.target;
+            const remaining = totalCount - loadedCount[status];
+
+            if (remaining > 0) {
+                button.textContent = `显示更多 (还有 ${remaining} 个)`;
+            } else {
+                button.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

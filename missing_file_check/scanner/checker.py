@@ -70,6 +70,9 @@ class CheckResult:
     missing_files: List[MissingFile]
     statistics: ResultStatistics
     timestamp: datetime
+    # Full project scan results for detailed reporting
+    target_projects: Optional[List[ProjectScanResult]] = None
+    baseline_projects: Optional[List[ProjectScanResult]] = None
 
 
 class MissingFileChecker:
@@ -156,6 +159,8 @@ class MissingFileChecker:
             missing_files=missing_file_objects,
             statistics=statistics,
             timestamp=datetime.now(),
+            target_projects=target_results,
+            baseline_projects=baseline_results,
         )
 
     def _fetch_target_projects(self) -> List[ProjectScanResult]:

@@ -1,12 +1,14 @@
 {
   "task_id": "TASK-PHASE3-001",
-  "timestamp": "2026-01-27T07:52:32.534107",
+  "timestamp": "2026-01-27T23:47:21.445511",
   "statistics": {
-    "total_missing": 6,
     "missed_count": 3,
+    "failed_count": 1,
+    "passed_count": 2,
     "shielded_count": 2,
     "remapped_count": 0,
-    "failed_count": 1,
+    "target_file_count": 5,
+    "baseline_file_count": 10,
     "target_project_count": 1,
     "baseline_project_count": 1
   },
@@ -18,16 +20,16 @@
   ],
   "missing_files": [
     {
-      "path": "src/database.py",
-      "status": "missed",
+      "path": "docs/README.md",
+      "status": "shielded",
       "source_baseline_project": "baseline-1",
-      "shielded_by": null,
-      "shielded_remark": null,
+      "shielded_by": "SHIELD-001",
+      "shielded_remark": "Documentation files excluded",
       "remapped_by": null,
       "remapped_to": null,
       "remapped_remark": null,
-      "ownership": "database.py",
-      "miss_reason": "not_in_list",
+      "ownership": "Unknown",
+      "miss_reason": "shielded: Documentation files excluded",
       "first_detected_at": null
     },
     {
@@ -44,19 +46,6 @@
       "first_detected_at": null
     },
     {
-      "path": "tests/test_database.py",
-      "status": "missed",
-      "source_baseline_project": "baseline-1",
-      "shielded_by": null,
-      "shielded_remark": null,
-      "remapped_by": null,
-      "remapped_to": null,
-      "remapped_remark": null,
-      "ownership": "Unknown",
-      "miss_reason": "not_in_list",
-      "first_detected_at": null
-    },
-    {
       "path": "tests/test_utils.py",
       "status": "missed",
       "source_baseline_project": "baseline-1",
@@ -70,16 +59,29 @@
       "first_detected_at": null
     },
     {
-      "path": "docs/README.md",
-      "status": "shielded",
+      "path": "tests/test_database.py",
+      "status": "missed",
       "source_baseline_project": "baseline-1",
-      "shielded_by": "SHIELD-001",
-      "shielded_remark": "Documentation files excluded",
+      "shielded_by": null,
+      "shielded_remark": null,
       "remapped_by": null,
       "remapped_to": null,
       "remapped_remark": null,
       "ownership": "Unknown",
-      "miss_reason": "shielded: Documentation files excluded",
+      "miss_reason": "not_in_list",
+      "first_detected_at": null
+    },
+    {
+      "path": "src/database.py",
+      "status": "missed",
+      "source_baseline_project": "baseline-1",
+      "shielded_by": null,
+      "shielded_remark": null,
+      "remapped_by": null,
+      "remapped_to": null,
+      "remapped_remark": null,
+      "ownership": "database.py",
+      "miss_reason": "not_in_list",
       "first_detected_at": null
     },
     {

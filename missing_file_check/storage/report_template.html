@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>缺失文件扫描报告 - TASK-PHASE3-001</title>
+    <title>缺失文件扫描报告 - {{ result.task_id }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -192,59 +192,59 @@
         <div class="header">
             <h1>📋 缺失文件扫描报告</h1>
             <div class="meta">
-                任务ID: TASK-PHASE3-001 |
-                扫描时间: 2026-01-27 23:47:21
+                任务ID: {{ result.task_id }} |
+                扫描时间: {{ result.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
             </div>
         </div>
 
         <div class="stats-grid">
             <div class="stat-card missed">
-                <div class="stat-number">3</div>
+                <div class="stat-number">{{ result.statistics.missed_count }}</div>
                 <div class="stat-label">🔴 真实缺失（需处理）</div>
             </div>
             <div class="stat-card failed">
-                <div class="stat-number">1</div>
+                <div class="stat-number">{{ result.statistics.failed_count }}</div>
                 <div class="stat-label">❌ 扫描失败（需处理）</div>
             </div>
             <div class="stat-card" style="border-left-color: #48bb78;">
-                <div class="stat-number" style="color: #48bb78;">2</div>
+                <div class="stat-number" style="color: #48bb78;">{{ result.statistics.passed_count }}</div>
                 <div class="stat-label">✅ 已通过（已审核）</div>
             </div>
             <div class="stat-card shielded">
-                <div class="stat-number">2</div>
+                <div class="stat-number">{{ result.statistics.shielded_count }}</div>
                 <div class="stat-label">🛡️ 已屏蔽</div>
             </div>
             <div class="stat-card remapped">
-                <div class="stat-number">0</div>
+                <div class="stat-number">{{ result.statistics.remapped_count }}</div>
                 <div class="stat-label">🔄 已映射</div>
             </div>
         </div>
 
         <div class="stats-grid" style="margin-top: 10px;">
             <div class="stat-card">
-                <div class="stat-number">5</div>
+                <div class="stat-number">{{ result.statistics.target_file_count }}</div>
                 <div class="stat-label">📁 目标工程文件总数</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">10</div>
+                <div class="stat-number">{{ result.statistics.baseline_file_count }}</div>
                 <div class="stat-label">📚 基线工程文件总数</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">1</div>
+                <div class="stat-number">{{ result.statistics.target_project_count }}</div>
                 <div class="stat-label">🎯 目标工程数量</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">1</div>
+                <div class="stat-number">{{ result.statistics.baseline_project_count }}</div>
                 <div class="stat-label">📊 基线工程数量</div>
             </div>
         </div>
 
         <!-- 工程信息表格 -->
-        
+        {% if result.target_projects or result.baseline_projects %}
         <div class="section">
             <h2>🏗️ 工程详细信息</h2>
 
-            
+            {% if result.target_projects %}
             <h3 style="margin: 15px 0 10px 0; color: #c53030;">🎯 待检查工程</h3>
             <table class="project-table">
                 <thead>
@@ -259,30 +259,34 @@
                     </tr>
                 </thead>
                 <tbody>
-                
+                {% for project in result.target_projects %}
                     <tr>
-                        <td><strong>target-1</strong></td>
-                        <td><code>BUILD-TARGET-001</code></td>
-                        <td>main</td>
-                        <td><code>abc123de</code></td>
-                        <td>1.0.0</td>
+                        <td><strong>{{ project.project_id }}</strong></td>
+                        <td><code>{{ project.build_info.build_no }}</code></td>
+                        <td>{{ project.build_info.branch }}</td>
+                        <td><code>{{ project.build_info.commit_id[:8] if project.build_info.commit_id else 'N/A' }}</code></td>
+                        <td>{{ project.build_info.b_version or 'N/A' }}</td>
                         <td>
-                            
+                            {% if project.build_info.build_status == 'success' %}
                             <span style="color: #48bb78;">✓ 成功</span>
-                            
+                            {% else %}
+                            <span style="color: #f56565;">✗ 失败</span>
+                            {% endif %}
                         </td>
                         <td>
-                            
-                            <a href="https://example.com/builds/target-001" class="project-link" target="_blank">查看构建 →</a>
-                            
+                            {% if project.build_info.build_url %}
+                            <a href="{{ project.build_info.build_url }}" class="project-link" target="_blank">查看构建 →</a>
+                            {% else %}
+                            <span style="color: #a0aec0;">-</span>
+                            {% endif %}
                         </td>
                     </tr>
-                
+                {% endfor %}
                 </tbody>
             </table>
-            
+            {% endif %}
 
-            
+            {% if result.baseline_projects %}
             <h3 style="margin: 25px 0 10px 0; color: #2c5282;">📊 基线工程</h3>
             <table class="project-table">
                 <thead>
@@ -297,202 +301,88 @@
                     </tr>
                 </thead>
                 <tbody>
-                
+                {% for project in result.baseline_projects %}
                     <tr>
-                        <td><strong>baseline-1</strong></td>
-                        <td><code>BUILD-BASELINE-001</code></td>
-                        <td>main</td>
-                        <td><code>abc123de</code></td>
-                        <td>1.0.0</td>
+                        <td><strong>{{ project.project_id }}</strong></td>
+                        <td><code>{{ project.build_info.build_no }}</code></td>
+                        <td>{{ project.build_info.branch }}</td>
+                        <td><code>{{ project.build_info.commit_id[:8] if project.build_info.commit_id else 'N/A' }}</code></td>
+                        <td>{{ project.build_info.b_version or 'N/A' }}</td>
                         <td>
-                            
+                            {% if project.build_info.build_status == 'success' %}
                             <span style="color: #48bb78;">✓ 成功</span>
-                            
+                            {% else %}
+                            <span style="color: #f56565;">✗ 失败</span>
+                            {% endif %}
                         </td>
                         <td>
-                            
-                            <a href="https://example.com/builds/baseline-001" class="project-link" target="_blank">查看构建 →</a>
-                            
+                            {% if project.build_info.build_url %}
+                            <a href="{{ project.build_info.build_url }}" class="project-link" target="_blank">查看构建 →</a>
+                            {% else %}
+                            <span style="color: #a0aec0;">-</span>
+                            {% endif %}
                         </td>
                     </tr>
-                
+                {% endfor %}
                 </tbody>
             </table>
-            
+            {% endif %}
         </div>
-        
+        {% endif %}
 
         <!-- 文件列表 - 优化性能 -->
-        
-        
-        
+        {% for status, title, emoji in [('missed', '真实缺失文件', '🔴'), ('failed', '扫描失败文件', '❌'), ('shielded', '已屏蔽文件', '🛡️'), ('remapped', '已映射文件', '🔄')] %}
+        {% set files = result.missing_files|selectattr('status', 'equalto', status)|list %}
+        {% if files %}
         <div class="section">
-            <h2>🔴 真实缺失文件 (3)</h2>
+            <h2>{{ emoji }} {{ title }} ({{ files|length }})</h2>
 
-            
+            {% if files|length > 100 %}
+            <div class="file-count-info">
+                ⚠️ 文件数量较多（{{ files|length }} 个），默认显示前 100 个。点击"显示更多"按钮加载剩余文件。
+            </div>
+            {% endif %}
 
-            <ul class="file-list" id="file-list-missed">
-            
-                <li class="file-item " data-index="1">
-                    <div class="file-path">tests/test_utils.py</div>
+            <ul class="file-list" id="file-list-{{ status }}">
+            {% for file in files %}
+                <li class="file-item {% if loop.index > 100 %}hidden{% endif %}" data-index="{{ loop.index }}">
+                    <div class="file-path">{{ file.path }}</div>
                     <div class="file-meta">
-                        <span class="badge missed">MISSED</span>
-                        
-                        <span>📦 来源: baseline-1</span>
-                        
-                        
-                        <span>👤 归属: Unknown</span>
-                        
-                        
-                        <span>💡 原因: not_in_list</span>
-                        
-                        
-                        
-                        
+                        <span class="badge {{ status }}">{{ status|upper }}</span>
+                        {% if file.source_baseline_project %}
+                        <span>📦 来源: {{ file.source_baseline_project }}</span>
+                        {% endif %}
+                        {% if file.ownership %}
+                        <span>👤 归属: {{ file.ownership }}</span>
+                        {% endif %}
+                        {% if file.miss_reason %}
+                        <span>💡 原因: {{ file.miss_reason }}</span>
+                        {% endif %}
+                        {% if file.shielded_remark %}
+                        <span>🛡️ {{ file.shielded_remark }}</span>
+                        {% endif %}
+                        {% if file.remapped_to %}
+                        <span>🔄 映射到: {{ file.remapped_to }}</span>
+                        {% endif %}
+                        {% if file.first_detected_at %}
+                        <span>🕒 首次发现: {{ file.first_detected_at.strftime('%Y-%m-%d') }}</span>
+                        {% endif %}
                     </div>
                 </li>
-            
-                <li class="file-item " data-index="2">
-                    <div class="file-path">tests/test_database.py</div>
-                    <div class="file-meta">
-                        <span class="badge missed">MISSED</span>
-                        
-                        <span>📦 来源: baseline-1</span>
-                        
-                        
-                        <span>👤 归属: Unknown</span>
-                        
-                        
-                        <span>💡 原因: not_in_list</span>
-                        
-                        
-                        
-                        
-                    </div>
-                </li>
-            
-                <li class="file-item " data-index="3">
-                    <div class="file-path">src/database.py</div>
-                    <div class="file-meta">
-                        <span class="badge missed">MISSED</span>
-                        
-                        <span>📦 来源: baseline-1</span>
-                        
-                        
-                        <span>👤 归属: database.py</span>
-                        
-                        
-                        <span>💡 原因: not_in_list</span>
-                        
-                        
-                        
-                        
-                    </div>
-                </li>
-            
+            {% endfor %}
             </ul>
 
-            
+            {% if files|length > 100 %}
+            <button class="show-more-btn" onclick="showMore('{{ status }}', {{ files|length }})">
+                显示更多 (还有 {{ files|length - 100 }} 个)
+            </button>
+            {% endif %}
         </div>
-        
-        
-        
-        
-        <div class="section">
-            <h2>❌ 扫描失败文件 (1)</h2>
-
-            
-
-            <ul class="file-list" id="file-list-failed">
-            
-                <li class="file-item " data-index="1">
-                    <div class="file-path">tests/test_main.py</div>
-                    <div class="file-meta">
-                        <span class="badge failed">FAILED</span>
-                        
-                        <span>📦 来源: baseline-1</span>
-                        
-                        
-                        <span>👤 归属: Unknown</span>
-                        
-                        
-                        <span>💡 原因: failed_status</span>
-                        
-                        
-                        
-                        
-                    </div>
-                </li>
-            
-            </ul>
-
-            
-        </div>
-        
-        
-        
-        
-        <div class="section">
-            <h2>🛡️ 已屏蔽文件 (2)</h2>
-
-            
-
-            <ul class="file-list" id="file-list-shielded">
-            
-                <li class="file-item " data-index="1">
-                    <div class="file-path">docs/README.md</div>
-                    <div class="file-meta">
-                        <span class="badge shielded">SHIELDED</span>
-                        
-                        <span>📦 来源: baseline-1</span>
-                        
-                        
-                        <span>👤 归属: Unknown</span>
-                        
-                        
-                        <span>💡 原因: shielded: Documentation files excluded</span>
-                        
-                        
-                        <span>🛡️ Documentation files excluded</span>
-                        
-                        
-                        
-                    </div>
-                </li>
-            
-                <li class="file-item " data-index="2">
-                    <div class="file-path">docs/API.md</div>
-                    <div class="file-meta">
-                        <span class="badge shielded">SHIELDED</span>
-                        
-                        <span>📦 来源: baseline-1</span>
-                        
-                        
-                        <span>👤 归属: Unknown</span>
-                        
-                        
-                        <span>💡 原因: shielded: Documentation files excluded</span>
-                        
-                        
-                        <span>🛡️ Documentation files excluded</span>
-                        
-                        
-                        
-                    </div>
-                </li>
-            
-            </ul>
-
-            
-        </div>
-        
-        
-        
-        
-        
+        {% endif %}
+        {% endfor %}
 
         <div class="footer">
-            <p>缺失文件扫描工具 | 生成时间: 2026-01-27 23:47:21</p>
+            <p>缺失文件扫描工具 | 生成时间: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
             <p style="margin-top: 10px; font-size: 12px;">
                 💡 提示：如需查看完整文件列表，请下载 JSON 报告
             </p>

@@ -234,10 +234,18 @@ class ReportGenerator:
         Args:
             template_path: Optional path to custom HTML template
         """
+        # Try to use external template file first
+        if template_path is None:
+            # Default to template file in same directory
+            default_template = Path(__file__).parent / "report_template.html"
+            if default_template.exists():
+                template_path = default_template
+
         if template_path and template_path.exists():
             with open(template_path, "r", encoding="utf-8") as f:
                 self.html_template = Template(f.read())
         else:
+            # Fallback to embedded template
             self.html_template = Template(self.HTML_TEMPLATE)
 
     def generate_html(self, result: CheckResult, output_path: Optional[Path] = None) -> str:

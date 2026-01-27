@@ -1,19 +1,37 @@
 [project]
 name = "missing-file-cc"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "Missing File Check - 缺失文件扫描工具"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "click>=8.3.1",
     "jinja2>=3.1.6",
     "pydantic>=2.12.5",
     "pymysql>=1.1.2",
     "python-dotenv>=1.2.1",
+    "pyyaml>=6.0.3",
     "requests>=2.32.5",
+    "rich>=14.3.1",
     "sqlalchemy>=2.0.46",
 ]
+
+[project.scripts]
+missing-file-check = "missing_file_check.cli:main"
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
 ]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["missing_file_check*"]
+exclude = ["tests*", "docs*", "examples*", "scripts*", "reports*", "test_data*"]
+
+[tool.uv]
+package = true

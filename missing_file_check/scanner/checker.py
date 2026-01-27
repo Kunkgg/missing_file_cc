@@ -87,14 +87,18 @@ class MissingFileChecker:
     5. Return comprehensive results
     """
 
-    def __init__(self, config: TaskConfig):
+    def __init__(self, config: TaskConfig, enable_parallel: bool = True, max_workers: Optional[int] = None):
         """
         Initialize checker with task configuration.
 
         Args:
             config: Complete task configuration
+            enable_parallel: Enable parallel processing for fetching projects (default: True)
+            max_workers: Maximum worker threads for parallel processing (None = auto)
         """
         self.config = config
+        self.enable_parallel = enable_parallel
+        self.max_workers = max_workers
 
         # Initialize components
         self.path_normalizer = PathNormalizer(config.path_prefixes)
@@ -164,13 +168,33 @@ class MissingFileChecker:
         )
 
     def _fetch_target_projects(self) -> List[ProjectScanResult]:
-        """Fetch data from all target projects."""
-        results = []
-        for project_config in self.config.target_projects:
+        """
+        Fetch data from all target projects.
+
+        Uses parallel processing if enabled and multiple projects exist.
+        """
+        if not self.enable_parallel or len(self.config.target_projects) == 1:
+            # Serial execution for single project or when parallel is disabled
+            results = []
+            for project_config in self.config.target_projects:
+                adapter = AdapterFactory.create(project_config)
+                result = adapter.fetch_files()
+                results.append(result)
+            return results
+
+        # Parallel execution for multiple projects
+        from missing_file_check.utils.concurrent import parallel_map
+
+        def fetch_project(project_config):
             adapter = AdapterFactory.create(project_config)
-            result = adapter.fetch_files()
-            results.append(result)
-        return results
+            return adapter.fetch_files()
+
+        return parallel_map(
+            fetch_project,
+            self.config.target_projects,
+            max_workers=self.max_workers,
+            task_name="target projects"
+        )
 
     def _fetch_baseline_projects(
         self, target_results: List[ProjectScanResult]

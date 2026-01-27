@@ -1,0 +1,12 @@
+[
+  {"path": "/baseline/src/main.py", "status": "success"},
+  {"path": "/baseline/src/utils.py", "status": "success"},
+  {"path": "/baseline/src/config.py", "status": "success"},
+  {"path": "/baseline/src/database.py", "status": "success"},
+  {"path": "/baseline/tests/test_main.py", "status": "success"},
+  {"path": "/baseline/tests/test_utils.py", "status": "success"},
+  {"path": "/baseline/tests/test_database.py", "status": "success"},
+  {"path": "/baseline/docs/README.md", "status": "success"},
+  {"path": "/baseline/docs/API.md", "status": "success"},
+  {"path": "/baseline/README.md", "status": "success"}
+]

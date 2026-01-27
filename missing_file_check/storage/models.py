@@ -164,11 +164,17 @@ class ScanResultModel(Base):
     error_message = Column(Text)
 
     # Statistics
-    total_missing = Column(Integer, default=0)
+    # Note: missed_count and failed_count are real issues
+    # passed_count (shielded + remapped) are reviewed and not issues
     missed_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    passed_count = Column(Integer, default=0)
     shielded_count = Column(Integer, default=0)
     remapped_count = Column(Integer, default=0)
-    failed_count = Column(Integer, default=0)
+    target_file_count = Column(Integer, default=0)
+    baseline_file_count = Column(Integer, default=0)
+    target_project_count = Column(Integer, default=0)
+    baseline_project_count = Column(Integer, default=0)
 
     # Project information (stored as JSON strings)
     target_project_ids = Column(Text)  # JSON array

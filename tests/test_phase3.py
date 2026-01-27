@@ -65,7 +65,17 @@ class TestAnalyzers:
             target_project_ids=["t1"],
             baseline_project_ids=["b1"],
             missing_files=files,
-            statistics=ResultStatistics(1, 1, 0, 0, 0, 1, 1),
+            statistics=ResultStatistics(
+                missed_count=1,
+                failed_count=0,
+                passed_count=0,
+                shielded_count=0,
+                remapped_count=0,
+                target_file_count=10,
+                baseline_file_count=10,
+                target_project_count=1,
+                baseline_project_count=1,
+            ),
             timestamp=datetime.now(),
         )
 
@@ -103,7 +113,17 @@ class TestReportGenerator:
             target_project_ids=["target-1"],
             baseline_project_ids=["baseline-1"],
             missing_files=files,
-            statistics=ResultStatistics(2, 1, 1, 0, 0, 1, 1),
+            statistics=ResultStatistics(
+                missed_count=1,
+                failed_count=0,
+                passed_count=1,
+                shielded_count=1,
+                remapped_count=0,
+                target_file_count=100,
+                baseline_file_count=100,
+                target_project_count=1,
+                baseline_project_count=1,
+            ),
             timestamp=datetime.now(),
         )
 
@@ -136,7 +156,17 @@ class TestReportGenerator:
             target_project_ids=["t1"],
             baseline_project_ids=["b1"],
             missing_files=files,
-            statistics=ResultStatistics(1, 0, 0, 0, 1, 1, 1),
+            statistics=ResultStatistics(
+                missed_count=0,
+                failed_count=1,
+                passed_count=0,
+                shielded_count=0,
+                remapped_count=0,
+                target_file_count=50,
+                baseline_file_count=50,
+                target_project_count=1,
+                baseline_project_count=1,
+            ),
             timestamp=datetime.now(),
         )
 
@@ -162,7 +192,17 @@ class TestReportGenerator:
             target_project_ids=["t1"],
             baseline_project_ids=["b1"],
             missing_files=[],
-            statistics=ResultStatistics(0, 0, 0, 0, 0, 1, 1),
+            statistics=ResultStatistics(
+                missed_count=0,
+                failed_count=0,
+                passed_count=0,
+                shielded_count=0,
+                remapped_count=0,
+                target_file_count=100,
+                baseline_file_count=100,
+                target_project_count=1,
+                baseline_project_count=1,
+            ),
             timestamp=datetime.now(),
         )
 

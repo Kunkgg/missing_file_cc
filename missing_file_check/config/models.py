@@ -46,9 +46,15 @@ class ProjectConfig(BaseModel):
                 raise ValueError(f"FTP connection requires: {required}")
 
         elif project_type == ProjectType.LOCAL:
-            required = {"base_path"}
-            if not required.issubset(v.keys()):
-                raise ValueError(f"Local connection requires: {required}")
+            # Support both old and new formats
+            has_old_format = "base_path" in v
+            has_new_format = "build_info_file" in v and "file_list_file" in v
+
+            if not (has_old_format or has_new_format):
+                raise ValueError(
+                    "Local connection requires either: {'base_path'} (old format) "
+                    "or {'build_info_file', 'file_list_file'} (new format)"
+                )
 
         return v
 

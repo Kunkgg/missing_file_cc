@@ -102,11 +102,15 @@ def main():
     print(f"   Baseline Projects: {', '.join(result.baseline_project_ids)}")
 
     print(f"\n📈 Statistics:")
-    print(f"   Total Missing Files: {result.statistics.total_missing}")
-    print(f"   ├─ 🔴 Missed: {result.statistics.missed_count}")
-    print(f"   ├─ 🛡️  Shielded: {result.statistics.shielded_count}")
-    print(f"   ├─ 🔄 Remapped: {result.statistics.remapped_count}")
-    print(f"   └─ ❌ Failed: {result.statistics.failed_count}")
+    print(f"   🚨 Issues (Need Attention):")
+    print(f"      ├─ 🔴 Missed: {result.statistics.missed_count}")
+    print(f"      └─ ❌ Failed: {result.statistics.failed_count}")
+    print(f"   ✅ Passed (Reviewed): {result.statistics.passed_count}")
+    print(f"      ├─ 🛡️  Shielded: {result.statistics.shielded_count}")
+    print(f"      └─ 🔄 Remapped: {result.statistics.remapped_count}")
+    print(f"   📁 File Counts:")
+    print(f"      ├─ Target: {result.statistics.target_file_count}")
+    print(f"      └─ Baseline: {result.statistics.baseline_file_count}")
 
     # Group files by status
     missed_files = [f for f in result.missing_files if f.status == "missed"]

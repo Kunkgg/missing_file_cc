@@ -26,10 +26,10 @@ cp .env.example .env
 # 编辑.env填入数据库配置
 
 # 创建数据库表（如果使用数据库）
-uv run python create_tables.py
+uv run python scripts/create_tables.py
 
 # 运行完整示例
-uv run python example_phase3_complete.py
+uv run python examples/example_phase3_complete.py
 
 # 运行测试
 uv run pytest tests/ -v
@@ -141,12 +141,12 @@ MappingRule(
 
 ## 文档
 
-- 📘 [快速开始](QUICK_START.md) - 基本使用方法
-- 📗 [阶段1总结](IMPLEMENTATION_SUMMARY.md) - 基础架构
-- 📕 [阶段2总结](PHASE2_SUMMARY.md) - 数据源适配器
-- 📙 [阶段3总结](PHASE3_SUMMARY.md) - 分析与持久化 ✨
-- 📔 [架构实现](ARCHITECTURE_IMPLEMENTED.md) - 详细架构
-- 📊 [数据库设计](database_schema_review.md) - 数据库评估
+- 📘 [快速开始](docs/QUICK_START.md) - 基本使用方法
+- 📗 [阶段1总结](docs/IMPLEMENTATION_SUMMARY.md) - 基础架构
+- 📕 [阶段2总结](docs/PHASE2_SUMMARY.md) - 数据源适配器
+- 📙 [阶段3总结](docs/PHASE3_SUMMARY.md) - 分析与持久化 ✨
+- 📔 [架构实现](docs/ARCHITECTURE_IMPLEMENTED.md) - 详细架构
+- 📊 [数据库设计](docs/database_schema_review.md) - 数据库评估
 - 📝 [CLAUDE指令](CLAUDE.md) - 开发指南
 
 ## 测试覆盖

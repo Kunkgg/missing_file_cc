@@ -135,13 +135,17 @@ class ReportGenerator:
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.total_missing }}</div>
-                <div class="stat-label">总缺失文件</div>
-            </div>
             <div class="stat-card missed">
                 <div class="stat-number">{{ result.statistics.missed_count }}</div>
-                <div class="stat-label">🔴 真实缺失</div>
+                <div class="stat-label">🔴 真实缺失（需处理）</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-number">{{ result.statistics.failed_count }}</div>
+                <div class="stat-label">❌ 扫描失败（需处理）</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #48bb78;">
+                <div class="stat-number" style="color: #48bb78;">{{ result.statistics.passed_count }}</div>
+                <div class="stat-label">✅ 已通过（已审核）</div>
             </div>
             <div class="stat-card shielded">
                 <div class="stat-number">{{ result.statistics.shielded_count }}</div>
@@ -151,9 +155,24 @@ class ReportGenerator:
                 <div class="stat-number">{{ result.statistics.remapped_count }}</div>
                 <div class="stat-label">🔄 已映射</div>
             </div>
-            <div class="stat-card failed">
-                <div class="stat-number">{{ result.statistics.failed_count }}</div>
-                <div class="stat-label">❌ 扫描失败</div>
+        </div>
+
+        <div class="stats-grid" style="margin-top: 10px;">
+            <div class="stat-card">
+                <div class="stat-number">{{ result.statistics.target_file_count }}</div>
+                <div class="stat-label">📁 目标工程文件总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ result.statistics.baseline_file_count }}</div>
+                <div class="stat-label">📚 基线工程文件总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ result.statistics.target_project_count }}</div>
+                <div class="stat-label">🎯 目标工程数量</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ result.statistics.baseline_project_count }}</div>
+                <div class="stat-label">📊 基线工程数量</div>
             </div>
         </div>
 
@@ -260,11 +279,13 @@ class ReportGenerator:
             "task_id": result.task_id,
             "timestamp": result.timestamp.isoformat(),
             "statistics": {
-                "total_missing": result.statistics.total_missing,
                 "missed_count": result.statistics.missed_count,
+                "failed_count": result.statistics.failed_count,
+                "passed_count": result.statistics.passed_count,
                 "shielded_count": result.statistics.shielded_count,
                 "remapped_count": result.statistics.remapped_count,
-                "failed_count": result.statistics.failed_count,
+                "target_file_count": result.statistics.target_file_count,
+                "baseline_file_count": result.statistics.baseline_file_count,
                 "target_project_count": result.statistics.target_project_count,
                 "baseline_project_count": result.statistics.baseline_project_count,
             },

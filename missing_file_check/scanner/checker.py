@@ -43,15 +43,21 @@ class MissingFile:
 
 @dataclass
 class ResultStatistics:
-    """Statistics summary for a check result."""
+    """Statistics summary for a check result.
 
-    total_missing: int
-    missed_count: int
-    shielded_count: int
-    remapped_count: int
-    failed_count: int
-    target_project_count: int
-    baseline_project_count: int
+    Note: Only missed and failed are actual issues that need attention.
+    Shielded and remapped files have been reviewed and are not problems.
+    """
+
+    missed_count: int  # Real issue: files missing in target
+    failed_count: int  # Real issue: files exist but failed in target
+    passed_count: int  # Not issues: shielded + remapped (reviewed and approved)
+    shielded_count: int  # Subset of passed: excluded by shield rules
+    remapped_count: int  # Subset of passed: handled by path mapping
+    target_file_count: int  # Total files in target projects
+    baseline_file_count: int  # Total files in baseline projects
+    target_project_count: int  # Number of target projects
+    baseline_project_count: int  # Number of baseline projects
 
 
 @dataclass
@@ -184,12 +190,21 @@ class MissingFileChecker:
             if file.status in status_counts:
                 status_counts[file.status] += 1
 
+        # passed_count = shielded + remapped (reviewed, not issues)
+        passed_count = status_counts["shielded"] + status_counts["remapped"]
+
+        # Calculate total file counts
+        target_file_count = sum(len(result.files) for result in target_results)
+        baseline_file_count = sum(len(result.files) for result in baseline_results)
+
         return ResultStatistics(
-            total_missing=len(missing_files),
             missed_count=status_counts["missed"],
+            failed_count=status_counts["failed"],
+            passed_count=passed_count,
             shielded_count=status_counts["shielded"],
             remapped_count=status_counts["remapped"],
-            failed_count=status_counts["failed"],
+            target_file_count=target_file_count,
+            baseline_file_count=baseline_file_count,
             target_project_count=len(target_results),
             baseline_project_count=len(baseline_results),
         )

@@ -140,11 +140,15 @@ def main():
     # Display results
     print(f"\nCheck completed at: {result.timestamp}")
     print(f"\nStatistics:")
-    print(f"  Total Missing: {result.statistics.total_missing}")
-    print(f"  - Missed: {result.statistics.missed_count}")
-    print(f"  - Shielded: {result.statistics.shielded_count}")
-    print(f"  - Remapped: {result.statistics.remapped_count}")
-    print(f"  - Failed: {result.statistics.failed_count}")
+    print(f"  Issues (Need Attention):")
+    print(f"    - Missed: {result.statistics.missed_count}")
+    print(f"    - Failed: {result.statistics.failed_count}")
+    print(f"  Passed (Reviewed): {result.statistics.passed_count}")
+    print(f"    - Shielded: {result.statistics.shielded_count}")
+    print(f"    - Remapped: {result.statistics.remapped_count}")
+    print(f"  File Counts:")
+    print(f"    - Target: {result.statistics.target_file_count}")
+    print(f"    - Baseline: {result.statistics.baseline_file_count}")
 
     print(f"\nMissing Files Details:")
     for file in result.missing_files:

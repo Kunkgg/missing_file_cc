@@ -95,10 +95,12 @@ def main():
     checker = MissingFileChecker(config)
     result = checker.check()
     print(f"   ✓ Scan completed")
-    print(f"   Total missing: {result.statistics.total_missing}")
+    print(f"   Issues: {result.statistics.missed_count + result.statistics.failed_count}")
     print(f"     - Missed: {result.statistics.missed_count}")
-    print(f"     - Shielded: {result.statistics.shielded_count}")
     print(f"     - Failed: {result.statistics.failed_count}")
+    print(f"   Passed: {result.statistics.passed_count}")
+    print(f"     - Shielded: {result.statistics.shielded_count}")
+    print(f"     - Remapped: {result.statistics.remapped_count}")
 
     # Step 3: Run analyzers
     print("\n🔬 Step 3: Run Analyzers")
@@ -183,7 +185,8 @@ def main():
     print("=" * 70)
 
     print("\n📊 Summary:")
-    print(f"   Scanner: ✓ {result.statistics.total_missing} files analyzed")
+    print(f"   Scanner: ✓ {result.statistics.baseline_file_count} baseline files analyzed")
+    print(f"   Issues Found: {result.statistics.missed_count + result.statistics.failed_count}")
     print(f"   Analyzers: ✓ Ownership, Reason, History")
     print(f"   Reports: ✓ HTML & JSON generated")
     print(f"   Storage: ✓ Upload interface demonstrated")

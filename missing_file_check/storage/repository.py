@@ -166,9 +166,8 @@ class MissingFileRepository:
 
         if task_id:
             # Join with scan_result to filter by task_id
-            query = (
-                query.join(ScanResultModel)
-                .filter(ScanResultModel.task_id == task_id)
+            query = query.join(ScanResultModel).filter(
+                ScanResultModel.task_id == task_id
             )
 
         query = query.order_by(MissingFileDetailModel.created_at.desc()).limit(limit)
@@ -193,9 +192,8 @@ class MissingFileRepository:
         )
 
         if task_id:
-            query = (
-                query.join(ScanResultModel)
-                .filter(ScanResultModel.task_id == task_id)
+            query = query.join(ScanResultModel).filter(
+                ScanResultModel.task_id == task_id
             )
 
         result = query.order_by(MissingFileDetailModel.created_at.asc()).first()
@@ -246,7 +244,9 @@ class MissingFileRepository:
             .all()
         )
 
-    def get_shield_rules(self, task_id: int, enabled_only: bool = True) -> List[ShieldRuleModel]:
+    def get_shield_rules(
+        self, task_id: int, enabled_only: bool = True
+    ) -> List[ShieldRuleModel]:
         """
         Get shield rules for a task.
 
@@ -336,3 +336,46 @@ class MissingFileRepository:
             scan_result.error_message = error_message
             scan_result.completed_at = datetime.now()
             self.session.commit()
+
+    def query_tasks(
+        self,
+        search_versions: Optional[List[str]] = None,
+        group_ids: Optional[List[int]] = None,
+        source_types: Optional[List[str]] = None,
+        active_only: bool = True,
+        limit: int = 1000,
+    ) -> List[TaskModel]:
+        """
+        Query tasks with filters.
+
+        Args:
+            search_versions: Filter by search_version (OR relationship if multiple)
+            group_ids: Filter by group_id (OR relationship if multiple)
+            source_types: Filter by source_type (OR relationship if multiple)
+            active_only: If True, only return active tasks
+            limit: Maximum number of records to return
+
+        Returns:
+            List of TaskModel instances matching the filters
+        """
+        query = self.session.query(TaskModel)
+
+        if active_only:
+            query = query.filter(TaskModel.is_active == True)
+
+        # Apply filters with OR relationship within same category
+        if search_versions:
+            search_filter = TaskModel.search_version.in_(search_versions)
+            query = query.filter(search_filter)
+
+        if group_ids:
+            group_filter = TaskModel.group_id.in_(group_ids)
+            query = query.filter(group_filter)
+
+        if source_types:
+            source_filter = TaskModel.source_type.in_(source_types)
+            query = query.filter(source_filter)
+
+        query = query.order_by(TaskModel.created_at.desc()).limit(limit)
+
+        return query.all()

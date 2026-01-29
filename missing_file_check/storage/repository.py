@@ -379,3 +379,41 @@ class MissingFileRepository:
         query = query.order_by(TaskModel.created_at.desc()).limit(limit)
 
         return query.all()
+
+    def save_task_error(
+        self,
+        task_id: int,
+        error_type: str,
+        error_message: str,
+        error_traceback: Optional[str] = None,
+    ) -> ScanResultModel:
+        """
+        Save task error information to database.
+
+        Args:
+            task_id: Task ID
+            error_type: Type of exception (e.g., ValueError, KeyError)
+            error_message: Error message
+            error_traceback: Full traceback string (optional)
+
+        Returns:
+            Created ScanResultModel instance with failed status
+        """
+        scan_result = ScanResultModel(
+            task_id=task_id,
+            status="failed",
+            error_message=f"[{error_type}] {error_message}",
+            completed_at=datetime.now(),
+        )
+
+        self.session.add(scan_result)
+        self.session.flush()
+
+        # If traceback is provided, could be saved to a separate error log table
+        # For now, we include it in the error_message field if it's not too long
+        if error_traceback and len(error_traceback) < 65000:
+            scan_result.error_message = f"[{error_type}] {error_message}\n\nTraceback:\n{error_traceback}"
+
+        self.session.commit()
+
+        return scan_result

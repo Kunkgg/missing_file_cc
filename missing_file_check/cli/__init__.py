@@ -6,6 +6,7 @@ Provides convenient CLI commands for scanning, reporting, and managing tasks.
 
 import sys
 import time
+import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -410,6 +411,8 @@ class TaskExecutionResult:
     success: bool
     duration_seconds: float
     error_message: Optional[str] = None
+    error_type: Optional[str] = None
+    error_traceback: Optional[str] = None
     statistics: Optional[Dict[str, Any]] = None
 
 
@@ -513,6 +516,8 @@ def execute_tasks_batch(
     for task in tasks:
         start_time = time.time()
         error_message = None
+        error_type = None
+        error_traceback = None
         statistics = None
 
         logger.info(f"执行任务 [{task.id}]...")
@@ -550,8 +555,20 @@ def execute_tasks_batch(
                 logger.success(f"任务 [{task.id}] 完成")
 
         except Exception as e:
+            error_type = type(e).__name__
             error_message = str(e)
-            logger.error(f"任务 [{task.id}] 失败: {e}")
+            error_traceback = traceback.format_exc()
+
+            logger.error(f"任务 [{task.id}] 失败: [{error_type}] {error_message}")
+            logger.debug(f"堆栈跟踪:\n{error_traceback}")
+
+            # Save error result to database
+            try:
+                repo.save_task_error(
+                    task.id, error_type, error_message, error_traceback
+                )
+            except Exception as db_error:
+                logger.error(f"保存错误信息到数据库失败: {db_error}")
 
         duration = time.time() - start_time
 
@@ -562,6 +579,8 @@ def execute_tasks_batch(
                 success=error_message is None,
                 duration_seconds=duration,
                 error_message=error_message,
+                error_type=error_type,
+                error_traceback=error_traceback,
                 statistics=statistics,
             )
         )
@@ -571,7 +590,7 @@ def execute_tasks_batch(
 
 def display_batch_summary(results: List[TaskExecutionResult]):
     """
-    Display batch execution summary using plain text table.
+    Display batch execution summary with detailed failure information.
 
     Args:
         results: List of TaskExecutionResult instances
@@ -591,6 +610,10 @@ def display_batch_summary(results: List[TaskExecutionResult]):
 
     # Print detailed results table
     print_results_table(results)
+
+    # Print detailed failure information
+    if failed_count > 0:
+        print_failure_details(results)
 
 
 def print_results_table(results: List[TaskExecutionResult]):
@@ -684,9 +707,145 @@ def print_table(
     print()
 
 
+def print_failure_details(results: List[TaskExecutionResult]):
+    """
+    Print detailed failure information for failed tasks.
+
+    Args:
+        results: List of TaskExecutionResult instances
+    """
+    failed_tasks = [r for r in results if not r.success]
+
+    if not failed_tasks:
+        return
+
+    logger.warning("=" * 60)
+    logger.warning("失败任务详细清单")
+    logger.warning("=" * 60)
+
+    for i, result in enumerate(failed_tasks, 1):
+        print()
+        logger.error(f"[{i}] 任务 ID: {result.task_id}")
+        logger.error(f"    异常类型: {result.error_type or 'Unknown'}")
+        logger.error(f"    异常信息: {result.error_message or 'No error message'}")
+
+        if result.error_traceback:
+            # Print first few lines of traceback
+            traceback_lines = result.error_traceback.strip().split("\n")
+            # Limit traceback to 10 lines to avoid too much output
+            if len(traceback_lines) > 10:
+                traceback_lines = traceback_lines[:10] + ["..."]
+            logger.debug(
+                f"    堆栈跟踪:\n"
+                + "\n".join(f"        {line}" for line in traceback_lines)
+            )
+
+    print()
+    logger.warning("=" * 60)
+
+
 def main():
     """Entry point for CLI."""
     cli(obj={})
+
+
+def generate_batch_report(
+    results: List[TaskExecutionResult],
+    output_path: Optional[Path] = None,
+) -> str:
+    """
+    Generate a comprehensive batch execution report.
+
+    Args:
+        results: List of TaskExecutionResult instances
+        output_path: Optional path to save the report
+
+    Returns:
+        Report content as string
+    """
+    from missing_file_check.storage.report_generator import ReportGenerator
+
+    total = len(results)
+    success_count = sum(1 for r in results if r.success)
+    failed_count = total - success_count
+
+    # Build report content
+    report_lines = []
+    report_lines.append("=" * 70)
+    report_lines.append("批量任务执行报告")
+    report_lines.append("=" * 70)
+    report_lines.append(f"执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_lines.append(f"总任务数: {total}")
+    report_lines.append(f"成功: {success_count}")
+    report_lines.append(f"失败: {failed_count}")
+    report_lines.append("""
+执行汇总
+""")
+
+    # Summary table
+    report_lines.append("-" * 70)
+    report_lines.append(
+        f"{'ID':<8} {'状态':<10} {'耗时':<12} {'缺失':<8} {'失败':<8} {'通过':<8}"
+    )
+    report_lines.append("-" * 70)
+
+    for result in results:
+        status = "成功" if result.success else "失败"
+        missed = str(
+            result.statistics.get("missed_count", "-") if result.statistics else "-"
+        )
+        failed = str(
+            result.statistics.get("failed_count", "-") if result.statistics else "-"
+        )
+        passed = str(
+            result.statistics.get("passed_count", "-") if result.statistics else "-"
+        )
+        duration = f"{result.duration_seconds:.2f}s"
+
+        report_lines.append(
+            f"{result.task_id:<8} {status:<10} {duration:<12} {missed:<8} {failed:<8} {passed:<8}"
+        )
+
+    report_lines.append("-" * 70)
+    report_lines.append("")
+
+    # Failure details
+    if failed_count > 0:
+        report_lines.append("=" * 70)
+        report_lines.append("失败任务详细清单")
+        report_lines.append("=" * 70)
+
+        failed_tasks = [r for r in results if not r.success]
+        for i, result in enumerate(failed_tasks, 1):
+            report_lines.append("")
+            report_lines.append(f"[{i}] 任务 ID: {result.task_id}")
+            report_lines.append(f"    异常类型: {result.error_type or 'Unknown'}")
+            report_lines.append(
+                f"    异常信息: {result.error_message or 'No error message'}"
+            )
+
+            if result.error_traceback:
+                report_lines.append("    堆栈跟踪:")
+                # Include full traceback in report
+                for line in result.error_traceback.strip().split("\n"):
+                    report_lines.append(f"        {line}")
+
+        report_lines.append("")
+        report_lines.append("=" * 70)
+
+    report_lines.append("")
+    report_lines.append("报告生成完成")
+    report_lines.append("")
+
+    report_content = "\n".join(report_lines)
+
+    # Save to file if path provided
+    if output_path:
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(report_content)
+        logger.info(f"批量执行报告已保存: {output_path}")
+
+    return report_content
 
 
 if __name__ == "__main__":

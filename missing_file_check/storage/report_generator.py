@@ -17,216 +17,6 @@ from missing_file_check.scanner.checker import CheckResult
 class ReportGenerator:
     """Generator for HTML and JSON reports."""
 
-    # HTML template embedded in code for simplicity
-    HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>缺失文件扫描报告 - {{ result.task_id }}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #f5f7fa;
-            color: #333;
-            padding: 20px;
-        }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .header h1 { font-size: 32px; margin-bottom: 10px; }
-        .header .meta { opacity: 0.9; font-size: 14px; }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-left: 4px solid #667eea;
-        }
-        .stat-card.missed { border-left-color: #f56565; }
-        .stat-card.shielded { border-left-color: #48bb78; }
-        .stat-card.remapped { border-left-color: #4299e1; }
-        .stat-card.failed { border-left-color: #ed8936; }
-        .stat-number { font-size: 36px; font-weight: bold; color: #667eea; }
-        .stat-label { color: #718096; margin-top: 5px; }
-
-        .section {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .section h2 {
-            font-size: 20px;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
-        }
-
-        .file-list { list-style: none; }
-        .file-item {
-            padding: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            transition: all 0.2s;
-        }
-        .file-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-color: #cbd5e0;
-        }
-        .file-path {
-            font-family: "Monaco", "Menlo", "Courier New", monospace;
-            color: #2d3748;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-        .file-meta {
-            font-size: 13px;
-            color: #718096;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .badge.missed { background: #fed7d7; color: #c53030; }
-        .badge.shielded { background: #c6f6d5; color: #2f855a; }
-        .badge.remapped { background: #bee3f8; color: #2c5282; }
-        .badge.failed { background: #feebc8; color: #c05621; }
-
-        .footer {
-            text-align: center;
-            color: #a0aec0;
-            margin-top: 40px;
-            padding: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>📋 缺失文件扫描报告</h1>
-            <div class="meta">
-                任务ID: {{ result.task_id }} |
-                扫描时间: {{ result.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
-            </div>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-card missed">
-                <div class="stat-number">{{ result.statistics.missed_count }}</div>
-                <div class="stat-label">🔴 真实缺失（需处理）</div>
-            </div>
-            <div class="stat-card failed">
-                <div class="stat-number">{{ result.statistics.failed_count }}</div>
-                <div class="stat-label">❌ 扫描失败（需处理）</div>
-            </div>
-            <div class="stat-card" style="border-left-color: #48bb78;">
-                <div class="stat-number" style="color: #48bb78;">{{ result.statistics.passed_count }}</div>
-                <div class="stat-label">✅ 已通过（已审核）</div>
-            </div>
-            <div class="stat-card shielded">
-                <div class="stat-number">{{ result.statistics.shielded_count }}</div>
-                <div class="stat-label">🛡️ 已屏蔽</div>
-            </div>
-            <div class="stat-card remapped">
-                <div class="stat-number">{{ result.statistics.remapped_count }}</div>
-                <div class="stat-label">🔄 已映射</div>
-            </div>
-        </div>
-
-        <div class="stats-grid" style="margin-top: 10px;">
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.target_file_count }}</div>
-                <div class="stat-label">📁 目标工程文件总数</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.baseline_file_count }}</div>
-                <div class="stat-label">📚 基线工程文件总数</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.target_project_count }}</div>
-                <div class="stat-label">🎯 目标工程数量</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.baseline_project_count }}</div>
-                <div class="stat-label">📊 基线工程数量</div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>📊 工程信息</h2>
-            <p><strong>待检查工程:</strong> {{ result.target_project_ids|join(', ') }}</p>
-            <p style="margin-top: 10px;"><strong>基线工程:</strong> {{ result.baseline_project_ids|join(', ') }}</p>
-        </div>
-
-        {% for status, title, emoji in [('missed', '真实缺失文件', '🔴'), ('shielded', '已屏蔽文件', '🛡️'), ('remapped', '已映射文件', '🔄'), ('failed', '扫描失败文件', '❌')] %}
-        {% set files = result.missing_files|selectattr('status', 'equalto', status)|list %}
-        {% if files %}
-        <div class="section">
-            <h2>{{ emoji }} {{ title }} ({{ files|length }})</h2>
-            <ul class="file-list">
-            {% for file in files %}
-                <li class="file-item">
-                    <div class="file-path">{{ file.path }}</div>
-                    <div class="file-meta">
-                        <span class="badge {{ status }}">{{ status|upper }}</span>
-                        {% if file.source_baseline_project %}
-                        <span>📦 来源: {{ file.source_baseline_project }}</span>
-                        {% endif %}
-                        {% if file.ownership %}
-                        <span>👤 归属: {{ file.ownership }}</span>
-                        {% endif %}
-                        {% if file.miss_reason %}
-                        <span>💡 原因: {{ file.miss_reason }}</span>
-                        {% endif %}
-                        {% if file.shielded_remark %}
-                        <span>🛡️ {{ file.shielded_remark }}</span>
-                        {% endif %}
-                        {% if file.remapped_to %}
-                        <span>🔄 映射到: {{ file.remapped_to }}</span>
-                        {% endif %}
-                        {% if file.first_detected_at %}
-                        <span>🕒 首次发现: {{ file.first_detected_at.strftime('%Y-%m-%d') }}</span>
-                        {% endif %}
-                    </div>
-                </li>
-            {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-        {% endfor %}
-
-        <div class="footer">
-            <p>缺失文件扫描工具 | 生成时间: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
-        </div>
-    </div>
-</body>
-</html>
-    """
-
     def __init__(self, template_path: Optional[Path] = None):
         """
         Initialize report generator.
@@ -240,15 +30,24 @@ class ReportGenerator:
             default_template = Path(__file__).parent / "report_template.html"
             if default_template.exists():
                 template_path = default_template
+            else:
+                raise FileNotFoundError(
+                    f"Template file not found: {default_template}. "
+                    "Please ensure report_template.html exists in the storage directory."
+                )
 
         if template_path and template_path.exists():
             with open(template_path, "r", encoding="utf-8") as f:
                 self.html_template = Template(f.read())
         else:
-            # Fallback to embedded template
-            self.html_template = Template(self.HTML_TEMPLATE)
+            raise FileNotFoundError(
+                f"Template file not found: {template_path}. "
+                "Please provide a valid template path."
+            )
 
-    def generate_html(self, result: CheckResult, output_path: Optional[Path] = None) -> str:
+    def generate_html(
+        self, result: CheckResult, output_path: Optional[Path] = None
+    ) -> str:
         """
         Generate HTML report.
 
@@ -271,7 +70,9 @@ class ReportGenerator:
 
         return html_content
 
-    def generate_json(self, result: CheckResult, output_path: Optional[Path] = None) -> str:
+    def generate_json(
+        self, result: CheckResult, output_path: Optional[Path] = None
+    ) -> str:
         """
         Generate JSON report.
 

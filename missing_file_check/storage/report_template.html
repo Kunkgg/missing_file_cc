@@ -3,281 +3,617 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="缺失文件扫描报告">
     <title>缺失文件扫描报告 - {{ result.task_id }}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #f5f7fa;
-            color: #333;
-            padding: 20px;
+        /* ========================================
+           CSS Custom Properties (Theme Variables)
+           ======================================== */
+        :root {
+            /* Color Palette */
+            --color-primary: #667eea;
+            --color-primary-dark: #5a67d8;
+            --color-secondary: #764ba2;
+            
+            --color-missed: #f56565;
+            --color-missed-bg: #fed7d7;
+            --color-missed-text: #c53030;
+            
+            --color-failed: #ed8936;
+            --color-failed-bg: #feebc8;
+            --color-failed-text: #c05621;
+            
+            --color-passed: #48bb78;
+            --color-passed-bg: #c6f6d5;
+            --color-passed-text: #2f855a;
+            
+            --color-shielded: #38a169;
+            --color-shielded-bg: #c6f6d5;
+            --color-shielded-text: #2f855a;
+            
+            --color-remapped: #4299e1;
+            --color-remapped-bg: #bee3f8;
+            --color-remapped-text: #2c5282;
+            
+            /* Neutral Colors */
+            --color-bg: #f5f7fa;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text-primary: #2d3748;
+            --color-text-secondary: #718096;
+            --color-text-muted: #a0aec0;
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-xxl: 40px;
+            
+            /* Border Radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 4px 6px rgba(0, 0, 0, 0.1);
+            
+            /* Typography */
+            --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-family-mono: "Monaco", "Menlo", "Courier New", monospace;
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.2s ease;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .header h1 { font-size: 32px; margin-bottom: 10px; }
-        .header .meta { opacity: 0.9; font-size: 14px; }
 
+        /* ========================================
+           Reset & Base Styles
+           ======================================== */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: var(--font-family-base);
+            background-color: var(--color-bg);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+            padding: var(--spacing-lg);
+        }
+
+        /* ========================================
+           Layout Components
+           ======================================== */
+        .report-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ========================================
+           Header Section
+           ======================================== */
+        .report-header {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            color: white;
+            padding: var(--spacing-xl);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-xl);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .report-header__title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .report-header__meta {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+        }
+
+        .report-header__meta-item {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* ========================================
+           Statistics Grid
+           ======================================== */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
         }
+
         .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            border-left: 4px solid #667eea;
-        }
-        .stat-card.missed { border-left-color: #f56565; }
-        .stat-card.shielded { border-left-color: #48bb78; }
-        .stat-card.remapped { border-left-color: #4299e1; }
-        .stat-card.failed { border-left-color: #ed8936; }
-        .stat-number { font-size: 36px; font-weight: bold; color: #667eea; }
-        .stat-label { color: #718096; margin-top: 5px; font-size: 14px; }
-
-        .section {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .section h2 {
-            font-size: 20px;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e2e8f0;
+            background: var(--color-surface);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--color-primary);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
         }
 
-        /* 工程信息表格 */
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card--missed { border-left-color: var(--color-missed); }
+        .stat-card--failed { border-left-color: var(--color-failed); }
+        .stat-card--passed { border-left-color: var(--color-passed); }
+        .stat-card--shielded { border-left-color: var(--color-shielded); }
+        .stat-card--remapped { border-left-color: var(--color-remapped); }
+
+        .stat-card__number {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            line-height: 1.2;
+        }
+
+        .stat-card--missed .stat-card__number { color: var(--color-missed); }
+        .stat-card--failed .stat-card__number { color: var(--color-failed); }
+        .stat-card--passed .stat-card__number { color: var(--color-passed); }
+        .stat-card--shielded .stat-card__number { color: var(--color-shielded); }
+        .stat-card--remapped .stat-card__number { color: var(--color-remapped); }
+
+        .stat-card__label {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            margin-top: var(--spacing-xs);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        /* ========================================
+           Content Sections
+           ======================================== */
+        .report-section {
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-xl);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .report-section__title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 2px solid var(--color-border);
+            color: var(--color-text-primary);
+        }
+
+        .report-section__subtitle {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: var(--spacing-lg) 0 var(--spacing-sm);
+            color: var(--color-text-primary);
+        }
+
+        /* ========================================
+           Project Table
+           ======================================== */
         .project-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: var(--spacing-md);
         }
-        .project-table th,
-        .project-table td {
-            padding: 12px;
+
+        .project-table__head {
+            background: var(--color-bg);
+        }
+
+        .project-table__th,
+        .project-table__td {
+            padding: var(--spacing-md);
             text-align: left;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid var(--color-border);
         }
-        .project-table th {
-            background: #f7fafc;
+
+        .project-table__th {
             font-weight: 600;
-            color: #4a5568;
-            font-size: 13px;
+            color: var(--color-text-secondary);
+            font-size: 0.75rem;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
-        .project-table td {
-            font-size: 14px;
+
+        .project-table__td {
+            font-size: 0.875rem;
         }
-        .project-table tr:hover {
-            background: #f7fafc;
+
+        .project-table__row:hover {
+            background: var(--color-bg);
         }
+
+        .project-table__code {
+            font-family: var(--font-family-mono);
+            font-size: 0.8125rem;
+            background: var(--color-bg);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+
         .project-link {
-            color: #4299e1;
+            color: var(--color-remapped);
             text-decoration: none;
+            font-weight: 500;
+            transition: color var(--transition-fast);
         }
+
         .project-link:hover {
+            color: var(--color-primary);
             text-decoration: underline;
         }
-        .project-type-badge {
+
+        .status-badge {
             display: inline-block;
             padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
             font-weight: 600;
-            text-transform: uppercase;
-        }
-        .project-type-badge.target {
-            background: #fed7d7;
-            color: #c53030;
-        }
-        .project-type-badge.baseline {
-            background: #bee3f8;
-            color: #2c5282;
         }
 
-        /* 文件列表优化 */
-        .file-list { list-style: none; }
+        .status-badge--success {
+            background: var(--color-passed-bg);
+            color: var(--color-passed-text);
+        }
+
+        .status-badge--error {
+            background: var(--color-missed-bg);
+            color: var(--color-missed-text);
+        }
+
+        .status-badge--target {
+            background: var(--color-missed-bg);
+            color: var(--color-missed-text);
+        }
+
+        .status-badge--baseline {
+            background: var(--color-remapped-bg);
+            color: var(--color-remapped-text);
+        }
+
+        /* ========================================
+           File List
+           ======================================== */
+        .file-list {
+            list-style: none;
+        }
+
         .file-item {
-            padding: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            transition: all 0.2s;
+            padding: var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            transition: all var(--transition-normal);
         }
+
         .file-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-color: #cbd5e0;
+            box-shadow: var(--shadow-md);
+            border-color: var(--color-text-muted);
         }
-        .file-item.hidden {
+
+        .file-item--hidden {
             display: none;
         }
-        .file-path {
-            font-family: "Monaco", "Menlo", "Courier New", monospace;
-            color: #2d3748;
+
+        .file-item__path {
+            font-family: var(--font-family-mono);
+            color: var(--color-text-primary);
             font-weight: 500;
-            margin-bottom: 8px;
+            margin-bottom: var(--spacing-sm);
             word-break: break-all;
+            font-size: 0.9375rem;
         }
-        .file-meta {
-            font-size: 13px;
-            color: #718096;
+
+        .file-item__meta {
+            font-size: 0.8125rem;
+            color: var(--color-text-secondary);
             display: flex;
-            gap: 15px;
             flex-wrap: wrap;
+            gap: var(--spacing-md);
+            align-items: center;
         }
-        .badge {
+
+        .file-item__meta-item {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        /* Status Badges for Files */
+        .status-label {
             display: inline-block;
-            padding: 3px 10px;
+            padding: 4px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: 0.75rem;
             font-weight: 600;
         }
-        .badge.missed { background: #fed7d7; color: #c53030; }
-        .badge.shielded { background: #c6f6d5; color: #2f855a; }
-        .badge.remapped { background: #bee3f8; color: #2c5282; }
-        .badge.failed { background: #feebc8; color: #c05621; }
 
-        /* 展开按钮 */
-        .show-more-btn {
+        .status-label--missed {
+            background: var(--color-missed-bg);
+            color: var(--color-missed-text);
+        }
+
+        .status-label--shielded {
+            background: var(--color-shielded-bg);
+            color: var(--color-shielded-text);
+        }
+
+        .status-label--remapped {
+            background: var(--color-remapped-bg);
+            color: var(--color-remapped-text);
+        }
+
+        .status-label--failed {
+            background: var(--color-failed-bg);
+            color: var(--color-failed-text);
+        }
+
+        /* ========================================
+           UI Controls
+           ======================================== */
+        .file-count-info {
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--color-bg);
+            border-radius: var(--radius-md);
+            border-left: 3px solid var(--color-remapped);
+        }
+
+        .btn {
             display: inline-block;
-            margin: 15px 0;
+            margin: var(--spacing-md) 0;
             padding: 10px 20px;
-            background: #4299e1;
+            background: var(--color-remapped);
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 0.875rem;
             font-weight: 500;
-            transition: background 0.2s;
+            transition: background var(--transition-fast);
         }
-        .show-more-btn:hover {
-            background: #3182ce;
+
+        .btn:hover {
+            background: var(--color-primary);
         }
-        .show-more-btn.hidden {
+
+        .btn--hidden {
             display: none;
         }
 
-        .file-count-info {
-            color: #718096;
-            font-size: 14px;
-            margin-bottom: 10px;
-            padding: 10px;
-            background: #f7fafc;
-            border-radius: 4px;
+        /* ========================================
+           Footer
+           ======================================== */
+        .report-footer {
+            text-align: center;
+            color: var(--color-text-muted);
+            margin-top: var(--spacing-xxl);
+            padding: var(--spacing-xl);
         }
 
-        .footer {
-            text-align: center;
-            color: #a0aec0;
-            margin-top: 40px;
-            padding: 20px;
+        .report-footer__text {
+            font-size: 0.875rem;
+        }
+
+        .report-footer__tip {
+            font-size: 0.75rem;
+            margin-top: var(--spacing-sm);
+            color: var(--color-text-secondary);
+        }
+
+        /* ========================================
+           Responsive Design
+           ======================================== */
+        @media (max-width: 768px) {
+            body {
+                padding: var(--spacing-md);
+            }
+
+            .report-header {
+                padding: var(--spacing-lg);
+            }
+
+            .report-header__title {
+                font-size: 1.5rem;
+            }
+
+            .report-section {
+                padding: var(--spacing-lg);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--spacing-md);
+            }
+
+            .stat-card {
+                padding: var(--spacing-md);
+            }
+
+            .stat-card__number {
+                font-size: 1.75rem;
+            }
+
+            .project-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .file-item__meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-sm);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .report-header__meta {
+                flex-direction: column;
+                gap: var(--spacing-xs);
+            }
+        }
+
+        /* ========================================
+           Print Styles
+           ======================================== */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .report-container {
+                max-width: none;
+            }
+
+            .report-header {
+                box-shadow: none;
+                border: 1px solid var(--color-border);
+            }
+
+            .report-section {
+                box-shadow: none;
+                border: 1px solid var(--color-border);
+                page-break-inside: avoid;
+            }
+
+            .file-item--hidden {
+                display: block;
+            }
+
+            .btn {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📋 缺失文件扫描报告</h1>
-            <div class="meta">
-                任务ID: {{ result.task_id }} |
-                扫描时间: {{ result.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+    <main class="report-container">
+        <!-- Report Header -->
+        <header class="report-header">
+            <h1 class="report-header__title">📋 缺失文件扫描报告</h1>
+            <div class="report-header__meta">
+                <span class="report-header__meta-item">任务ID: {{ result.task_id }}</span>
+                <span class="report-header__meta-item">|</span>
+                <span class="report-header__meta-item">扫描时间: {{ result.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
             </div>
-        </div>
+        </header>
 
-        <div class="stats-grid">
-            <div class="stat-card missed">
-                <div class="stat-number">{{ result.statistics.missed_count }}</div>
-                <div class="stat-label">🔴 真实缺失（需处理）</div>
-            </div>
-            <div class="stat-card failed">
-                <div class="stat-number">{{ result.statistics.failed_count }}</div>
-                <div class="stat-label">❌ 扫描失败（需处理）</div>
-            </div>
-            <div class="stat-card" style="border-left-color: #48bb78;">
-                <div class="stat-number" style="color: #48bb78;">{{ result.statistics.passed_count }}</div>
-                <div class="stat-label">✅ 已通过（已审核）</div>
-            </div>
-            <div class="stat-card shielded">
-                <div class="stat-number">{{ result.statistics.shielded_count }}</div>
-                <div class="stat-label">🛡️ 已屏蔽</div>
-            </div>
-            <div class="stat-card remapped">
-                <div class="stat-number">{{ result.statistics.remapped_count }}</div>
-                <div class="stat-label">🔄 已映射</div>
-            </div>
-        </div>
+        <!-- Statistics Overview -->
+        <section class="stats-grid" aria-label="统计概览">
+            <article class="stat-card stat-card--missed">
+                <div class="stat-card__number">{{ result.statistics.missed_count }}</div>
+                <div class="stat-card__label">🔴 真实缺失（需处理）</div>
+            </article>
+            <article class="stat-card stat-card--failed">
+                <div class="stat-card__number">{{ result.statistics.failed_count }}</div>
+                <div class="stat-card__label">❌ 扫描失败（需处理）</div>
+            </article>
+            <article class="stat-card stat-card--passed">
+                <div class="stat-card__number">{{ result.statistics.passed_count }}</div>
+                <div class="stat-card__label">✅ 已通过（已审核）</div>
+            </article>
+            <article class="stat-card stat-card--shielded">
+                <div class="stat-card__number">{{ result.statistics.shielded_count }}</div>
+                <div class="stat-card__label">🛡️ 已屏蔽</div>
+            </article>
+            <article class="stat-card stat-card--remapped">
+                <div class="stat-card__number">{{ result.statistics.remapped_count }}</div>
+                <div class="stat-card__label">🔄 已映射</div>
+            </article>
+        </section>
 
-        <div class="stats-grid" style="margin-top: 10px;">
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.target_file_count }}</div>
-                <div class="stat-label">📁 目标工程文件总数</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.baseline_file_count }}</div>
-                <div class="stat-label">📚 基线工程文件总数</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.target_project_count }}</div>
-                <div class="stat-label">🎯 目标工程数量</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ result.statistics.baseline_project_count }}</div>
-                <div class="stat-label">📊 基线工程数量</div>
-            </div>
-        </div>
+        <!-- File Statistics -->
+        <section class="stats-grid" aria-label="文件统计">
+            <article class="stat-card">
+                <div class="stat-card__number">{{ result.statistics.target_file_count }}</div>
+                <div class="stat-card__label">📁 目标工程文件总数</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-card__number">{{ result.statistics.baseline_file_count }}</div>
+                <div class="stat-card__label">📚 基线工程文件总数</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-card__number">{{ result.statistics.target_project_count }}</div>
+                <div class="stat-card__label">🎯 目标工程数量</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-card__number">{{ result.statistics.baseline_project_count }}</div>
+                <div class="stat-card__label">📊 基线工程数量</div>
+            </article>
+        </section>
 
-        <!-- 工程信息表格 -->
+        <!-- Project Information -->
         {% if result.target_projects or result.baseline_projects %}
-        <div class="section">
-            <h2>🏗️ 工程详细信息</h2>
+        <section class="report-section" aria-label="工程详细信息">
+            <h2 class="report-section__title">🏗️ 工程详细信息</h2>
 
             {% if result.target_projects %}
-            <h3 style="margin: 15px 0 10px 0; color: #c53030;">🎯 待检查工程</h3>
-            <table class="project-table">
-                <thead>
+            <h3 class="report-section__subtitle" style="color: var(--color-missed-text);">🎯 待检查工程</h3>
+            <table class="project-table" role="table">
+                <thead class="project-table__head">
                     <tr>
-                        <th>工程 ID</th>
-                        <th>Build No</th>
-                        <th>分支</th>
-                        <th>Commit ID</th>
-                        <th>版本</th>
-                        <th>状态</th>
-                        <th>链接</th>
+                        <th class="project-table__th">工程 ID</th>
+                        <th class="project-table__th">Build No</th>
+                        <th class="project-table__th">分支</th>
+                        <th class="project-table__th">Commit ID</th>
+                        <th class="project-table__th">版本</th>
+                        <th class="project-table__th">状态</th>
+                        <th class="project-table__th">链接</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for project in result.target_projects %}
-                    <tr>
-                        <td><strong>{{ project.project_id }}</strong></td>
-                        <td><code>{{ project.build_info.build_no }}</code></td>
-                        <td>{{ project.build_info.branch }}</td>
-                        <td><code>{{ project.build_info.commit_id[:8] if project.build_info.commit_id else 'N/A' }}</code></td>
-                        <td>{{ project.build_info.b_version or 'N/A' }}</td>
-                        <td>
+                    <tr class="project-table__row">
+                        <td class="project-table__td"><strong>{{ project.project_id }}</strong></td>
+                        <td class="project-table__td"><code class="project-table__code">{{ project.build_info.build_no }}</code></td>
+                        <td class="project-table__td">{{ project.build_info.branch }}</td>
+                        <td class="project-table__td"><code class="project-table__code">{{ project.build_info.commit_id[:8] if project.build_info.commit_id else 'N/A' }}</code></td>
+                        <td class="project-table__td">{{ project.build_info.b_version or 'N/A' }}</td>
+                        <td class="project-table__td">
                             {% if project.build_info.build_status == 'success' %}
-                            <span style="color: #48bb78;">✓ 成功</span>
+                            <span class="status-badge status-badge--success">✓ 成功</span>
                             {% else %}
-                            <span style="color: #f56565;">✗ 失败</span>
+                            <span class="status-badge status-badge--error">✗ 失败</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="project-table__td">
                             {% if project.build_info.build_url %}
-                            <a href="{{ project.build_info.build_url }}" class="project-link" target="_blank">查看构建 →</a>
+                            <a href="{{ project.build_info.build_url }}" class="project-link" target="_blank" rel="noopener noreferrer">查看构建 →</a>
                             {% else %}
-                            <span style="color: #a0aec0;">-</span>
+                            <span style="color: var(--color-text-muted);">-</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -287,39 +623,39 @@
             {% endif %}
 
             {% if result.baseline_projects %}
-            <h3 style="margin: 25px 0 10px 0; color: #2c5282;">📊 基线工程</h3>
-            <table class="project-table">
-                <thead>
+            <h3 class="report-section__subtitle" style="color: var(--color-remapped-text);">📊 基线工程</h3>
+            <table class="project-table" role="table">
+                <thead class="project-table__head">
                     <tr>
-                        <th>工程 ID</th>
-                        <th>Build No</th>
-                        <th>分支</th>
-                        <th>Commit ID</th>
-                        <th>版本</th>
-                        <th>状态</th>
-                        <th>链接</th>
+                        <th class="project-table__th">工程 ID</th>
+                        <th class="project-table__th">Build No</th>
+                        <th class="project-table__th">分支</th>
+                        <th class="project-table__th">Commit ID</th>
+                        <th class="project-table__th">版本</th>
+                        <th class="project-table__th">状态</th>
+                        <th class="project-table__th">链接</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for project in result.baseline_projects %}
-                    <tr>
-                        <td><strong>{{ project.project_id }}</strong></td>
-                        <td><code>{{ project.build_info.build_no }}</code></td>
-                        <td>{{ project.build_info.branch }}</td>
-                        <td><code>{{ project.build_info.commit_id[:8] if project.build_info.commit_id else 'N/A' }}</code></td>
-                        <td>{{ project.build_info.b_version or 'N/A' }}</td>
-                        <td>
+                    <tr class="project-table__row">
+                        <td class="project-table__td"><strong>{{ project.project_id }}</strong></td>
+                        <td class="project-table__td"><code class="project-table__code">{{ project.build_info.build_no }}</code></td>
+                        <td class="project-table__td">{{ project.build_info.branch }}</td>
+                        <td class="project-table__td"><code class="project-table__code">{{ project.build_info.commit_id[:8] if project.build_info.commit_id else 'N/A' }}</code></td>
+                        <td class="project-table__td">{{ project.build_info.b_version or 'N/A' }}</td>
+                        <td class="project-table__td">
                             {% if project.build_info.build_status == 'success' %}
-                            <span style="color: #48bb78;">✓ 成功</span>
+                            <span class="status-badge status-badge--success">✓ 成功</span>
                             {% else %}
-                            <span style="color: #f56565;">✗ 失败</span>
+                            <span class="status-badge status-badge--error">✗ 失败</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="project-table__td">
                             {% if project.build_info.build_url %}
-                            <a href="{{ project.build_info.build_url }}" class="project-link" target="_blank">查看构建 →</a>
+                            <a href="{{ project.build_info.build_url }}" class="project-link" target="_blank" rel="noopener noreferrer">查看构建 →</a>
                             {% else %}
-                            <span style="color: #a0aec0;">-</span>
+                            <span style="color: var(--color-text-muted);">-</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -327,15 +663,15 @@
                 </tbody>
             </table>
             {% endif %}
-        </div>
+        </section>
         {% endif %}
 
-        <!-- 文件列表 - 优化性能 -->
+        <!-- File Lists by Status -->
         {% for status, title, emoji in [('missed', '真实缺失文件', '🔴'), ('failed', '扫描失败文件', '❌'), ('shielded', '已屏蔽文件', '🛡️'), ('remapped', '已映射文件', '🔄')] %}
         {% set files = result.missing_files|selectattr('status', 'equalto', status)|list %}
         {% if files %}
-        <div class="section">
-            <h2>{{ emoji }} {{ title }} ({{ files|length }})</h2>
+        <section class="report-section" aria-label="{{ title }}">
+            <h2 class="report-section__title">{{ emoji }} {{ title }} ({{ files|length }})</h2>
 
             {% if files|length > 100 %}
             <div class="file-count-info">
@@ -343,29 +679,29 @@
             </div>
             {% endif %}
 
-            <ul class="file-list" id="file-list-{{ status }}">
+            <ul class="file-list" id="file-list-{{ status }}" role="list">
             {% for file in files %}
-                <li class="file-item {% if loop.index > 100 %}hidden{% endif %}" data-index="{{ loop.index }}">
-                    <div class="file-path">{{ file.path }}</div>
-                    <div class="file-meta">
-                        <span class="badge {{ status }}">{{ status|upper }}</span>
+                <li class="file-item {% if loop.index > 100 %}file-item--hidden{% endif %}" data-index="{{ loop.index }}">
+                    <div class="file-item__path">{{ file.path }}</div>
+                    <div class="file-item__meta">
+                        <span class="status-label status-label--{{ status }}">{{ status|upper }}</span>
                         {% if file.source_baseline_project %}
-                        <span>📦 来源: {{ file.source_baseline_project }}</span>
+                        <span class="file-item__meta-item">📦 来源: {{ file.source_baseline_project }}</span>
                         {% endif %}
                         {% if file.ownership %}
-                        <span>👤 归属: {{ file.ownership }}</span>
+                        <span class="file-item__meta-item">👤 归属: {{ file.ownership }}</span>
                         {% endif %}
                         {% if file.miss_reason %}
-                        <span>💡 原因: {{ file.miss_reason }}</span>
+                        <span class="file-item__meta-item">💡 原因: {{ file.miss_reason }}</span>
                         {% endif %}
                         {% if file.shielded_remark %}
-                        <span>🛡️ {{ file.shielded_remark }}</span>
+                        <span class="file-item__meta-item">🛡️ {{ file.shielded_remark }}</span>
                         {% endif %}
                         {% if file.remapped_to %}
-                        <span>🔄 映射到: {{ file.remapped_to }}</span>
+                        <span class="file-item__meta-item">🔄 映射到: {{ file.remapped_to }}</span>
                         {% endif %}
                         {% if file.first_detected_at %}
-                        <span>🕒 首次发现: {{ file.first_detected_at.strftime('%Y-%m-%d') }}</span>
+                        <span class="file-item__meta-item">🕒 首次发现: {{ file.first_detected_at.strftime('%Y-%m-%d') }}</span>
                         {% endif %}
                     </div>
                 </li>
@@ -373,58 +709,70 @@
             </ul>
 
             {% if files|length > 100 %}
-            <button class="show-more-btn" onclick="showMore('{{ status }}', {{ files|length }})">
+            <button class="btn" onclick="showMore('{{ status }}', {{ files|length }})" aria-label="显示更多文件">
                 显示更多 (还有 {{ files|length - 100 }} 个)
             </button>
             {% endif %}
-        </div>
+        </section>
         {% endif %}
         {% endfor %}
 
-        <div class="footer">
-            <p>缺失文件扫描工具 | 生成时间: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
-            <p style="margin-top: 10px; font-size: 12px;">
-                💡 提示：如需查看完整文件列表，请下载 JSON 报告
-            </p>
-        </div>
-    </div>
+        <!-- Report Footer -->
+        <footer class="report-footer">
+            <p class="report-footer__text">缺失文件扫描工具 | 生成时间: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            <p class="report-footer__tip">💡 提示：如需查看完整文件列表，请下载 JSON 报告</p>
+        </footer>
+    </main>
 
+    <!-- JavaScript for Interactive Features -->
     <script>
-        // 分批显示文件列表，避免一次性渲染过多 DOM 元素导致卡顿
-        const LOAD_BATCH_SIZE = 100;
+        /**
+         * File list lazy loading configuration
+         * Loads files in batches to improve performance
+         */
+        const CONFIG = {
+            LOAD_BATCH_SIZE: 100
+        };
+
+        // Track loaded count per status
         const loadedCount = {};
 
+        /**
+         * Show more files for a given status
+         * @param {string} status - File status category
+         * @param {number} totalCount - Total number of files in this category
+         */
         function showMore(status, totalCount) {
             const listId = 'file-list-' + status;
             const list = document.getElementById(listId);
-            const hiddenItems = list.querySelectorAll('.file-item.hidden');
+            const hiddenItems = list.querySelectorAll('.file-item--hidden');
 
-            // 初始化已加载数量
+            // Initialize loaded count for this status
             if (!loadedCount[status]) {
                 loadedCount[status] = 100;
             }
 
-            // 计算本次要显示的数量
+            // Calculate how many to show in this batch
             const remainingCount = totalCount - loadedCount[status];
-            const batchSize = Math.min(LOAD_BATCH_SIZE, remainingCount);
+            const batchSize = Math.min(CONFIG.LOAD_BATCH_SIZE, remainingCount);
 
-            // 显示下一批
+            // Show the next batch
             let shown = 0;
             for (let i = 0; i < hiddenItems.length && shown < batchSize; i++) {
-                hiddenItems[i].classList.remove('hidden');
+                hiddenItems[i].classList.remove('file-item--hidden');
                 shown++;
             }
 
             loadedCount[status] += shown;
 
-            // 更新按钮
+            // Update button text
             const button = event.target;
             const remaining = totalCount - loadedCount[status];
 
             if (remaining > 0) {
                 button.textContent = `显示更多 (还有 ${remaining} 个)`;
             } else {
-                button.classList.add('hidden');
+                button.classList.add('btn--hidden');
             }
         }
     </script>

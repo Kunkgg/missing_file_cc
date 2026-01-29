@@ -1,6 +1,6 @@
 {
   "task_id": "TASK-PHASE3-001",
-  "timestamp": "2026-01-27T23:47:21.445511",
+  "timestamp": "2026-01-30T06:38:42.273159",
   "statistics": {
     "missed_count": 3,
     "failed_count": 1,
@@ -21,19 +21,6 @@
   "missing_files": [
     {
       "path": "docs/README.md",
-      "status": "shielded",
-      "source_baseline_project": "baseline-1",
-      "shielded_by": "SHIELD-001",
-      "shielded_remark": "Documentation files excluded",
-      "remapped_by": null,
-      "remapped_to": null,
-      "remapped_remark": null,
-      "ownership": "Unknown",
-      "miss_reason": "shielded: Documentation files excluded",
-      "first_detected_at": null
-    },
-    {
-      "path": "docs/API.md",
       "status": "shielded",
       "source_baseline_project": "baseline-1",
       "shielded_by": "SHIELD-001",
@@ -69,6 +56,19 @@
       "remapped_remark": null,
       "ownership": "Unknown",
       "miss_reason": "not_in_list",
+      "first_detected_at": null
+    },
+    {
+      "path": "docs/API.md",
+      "status": "shielded",
+      "source_baseline_project": "baseline-1",
+      "shielded_by": "SHIELD-001",
+      "shielded_remark": "Documentation files excluded",
+      "remapped_by": null,
+      "remapped_to": null,
+      "remapped_remark": null,
+      "ownership": "Unknown",
+      "miss_reason": "shielded: Documentation files excluded",
       "first_detected_at": null
     },
     {

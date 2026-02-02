@@ -87,7 +87,12 @@ class MissingFileChecker:
     5. Return comprehensive results
     """
 
-    def __init__(self, config: TaskConfig, enable_parallel: bool = True, max_workers: Optional[int] = None):
+    def __init__(
+        self,
+        config: TaskConfig,
+        enable_parallel: bool = True,
+        max_workers: Optional[int] = None,
+    ):
         """
         Initialize checker with task configuration.
 
@@ -193,7 +198,7 @@ class MissingFileChecker:
             fetch_project,
             self.config.target_projects,
             max_workers=self.max_workers,
-            task_name="target projects"
+            task_name="target projects",
         )
 
     def _fetch_baseline_projects(

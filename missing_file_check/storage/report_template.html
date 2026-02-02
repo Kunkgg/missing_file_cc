@@ -176,6 +176,32 @@
         .stat-card--shielded .stat-card__number { color: var(--color-shielded); }
         .stat-card--remapped .stat-card__number { color: var(--color-remapped); }
 
+        /* Clickable link style for stat numbers */
+        .stat-card__link {
+            color: inherit;
+            text-decoration: none;
+            transition: all var(--transition-normal);
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .stat-card__link:hover {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+
+        /* Tooltip for download links */
+        .stat-card__link::after {
+            content: ' ↗';
+            font-size: 0.6em;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .stat-card__link:hover::after {
+            opacity: 1;
+        }
+
         .stat-card__label {
             color: var(--color-text-secondary);
             font-size: 0.875rem;
@@ -534,23 +560,53 @@
         <!-- Statistics Overview -->
         <section class="stats-grid" aria-label="统计概览">
             <article class="stat-card stat-card--missed">
+                {% if download_links and download_links.missed %}
+                <a href="{{ download_links.missed }}" class="stat-card__number stat-card__link" target="_blank" rel="noopener noreferrer" title="点击下载真实缺失文件详细列表">
+                    {{ result.statistics.missed_count }}
+                </a>
+                {% else %}
                 <div class="stat-card__number">{{ result.statistics.missed_count }}</div>
+                {% endif %}
                 <div class="stat-card__label">🔴 真实缺失（需处理）</div>
             </article>
             <article class="stat-card stat-card--failed">
+                {% if download_links and download_links.failed %}
+                <a href="{{ download_links.failed }}" class="stat-card__number stat-card__link" target="_blank" rel="noopener noreferrer" title="点击下载扫描失败文件详细列表">
+                    {{ result.statistics.failed_count }}
+                </a>
+                {% else %}
                 <div class="stat-card__number">{{ result.statistics.failed_count }}</div>
+                {% endif %}
                 <div class="stat-card__label">❌ 扫描失败（需处理）</div>
             </article>
             <article class="stat-card stat-card--passed">
+                {% if download_links and download_links.passed %}
+                <a href="{{ download_links.passed }}" class="stat-card__number stat-card__link" target="_blank" rel="noopener noreferrer" title="点击下载已通过文件详细列表">
+                    {{ result.statistics.passed_count }}
+                </a>
+                {% else %}
                 <div class="stat-card__number">{{ result.statistics.passed_count }}</div>
+                {% endif %}
                 <div class="stat-card__label">✅ 已通过（已审核）</div>
             </article>
             <article class="stat-card stat-card--shielded">
+                {% if download_links and download_links.shielded %}
+                <a href="{{ download_links.shielded }}" class="stat-card__number stat-card__link" target="_blank" rel="noopener noreferrer" title="点击下载已屏蔽文件详细列表">
+                    {{ result.statistics.shielded_count }}
+                </a>
+                {% else %}
                 <div class="stat-card__number">{{ result.statistics.shielded_count }}</div>
+                {% endif %}
                 <div class="stat-card__label">🛡️ 已屏蔽</div>
             </article>
             <article class="stat-card stat-card--remapped">
+                {% if download_links and download_links.remapped %}
+                <a href="{{ download_links.remapped }}" class="stat-card__number stat-card__link" target="_blank" rel="noopener noreferrer" title="点击下载已映射文件详细列表">
+                    {{ result.statistics.remapped_count }}
+                </a>
+                {% else %}
                 <div class="stat-card__number">{{ result.statistics.remapped_count }}</div>
+                {% endif %}
                 <div class="stat-card__label">🔄 已映射</div>
             </article>
         </section>
@@ -666,115 +722,60 @@
         </section>
         {% endif %}
 
-        <!-- File Lists by Status -->
-        {% for status, title, emoji in [('missed', '真实缺失文件', '🔴'), ('failed', '扫描失败文件', '❌'), ('shielded', '已屏蔽文件', '🛡️'), ('remapped', '已映射文件', '🔄')] %}
-        {% set files = result.missing_files|selectattr('status', 'equalto', status)|list %}
-        {% if files %}
-        <section class="report-section" aria-label="{{ title }}">
-            <h2 class="report-section__title">{{ emoji }} {{ title }} ({{ files|length }})</h2>
-
-            {% if files|length > 100 %}
-            <div class="file-count-info">
-                ⚠️ 文件数量较多（{{ files|length }} 个），默认显示前 100 个。点击"显示更多"按钮加载剩余文件。
-            </div>
-            {% endif %}
-
-            <ul class="file-list" id="file-list-{{ status }}" role="list">
-            {% for file in files %}
-                <li class="file-item {% if loop.index > 100 %}file-item--hidden{% endif %}" data-index="{{ loop.index }}">
-                    <div class="file-item__path">{{ file.path }}</div>
-                    <div class="file-item__meta">
-                        <span class="status-label status-label--{{ status }}">{{ status|upper }}</span>
-                        {% if file.source_baseline_project %}
-                        <span class="file-item__meta-item">📦 来源: {{ file.source_baseline_project }}</span>
-                        {% endif %}
-                        {% if file.ownership %}
-                        <span class="file-item__meta-item">👤 归属: {{ file.ownership }}</span>
-                        {% endif %}
-                        {% if file.miss_reason %}
-                        <span class="file-item__meta-item">💡 原因: {{ file.miss_reason }}</span>
-                        {% endif %}
-                        {% if file.shielded_remark %}
-                        <span class="file-item__meta-item">🛡️ {{ file.shielded_remark }}</span>
-                        {% endif %}
-                        {% if file.remapped_to %}
-                        <span class="file-item__meta-item">🔄 映射到: {{ file.remapped_to }}</span>
-                        {% endif %}
-                        {% if file.first_detected_at %}
-                        <span class="file-item__meta-item">🕒 首次发现: {{ file.first_detected_at.strftime('%Y-%m-%d') }}</span>
+        <!-- File Lists by Status (Simplified - Links to Download) -->
+        <section class="report-section" aria-label="详细文件列表">
+            <h2 class="report-section__title">📋 详细文件列表</h2>
+            
+            <div class="download-section">
+                {% set status_info = [
+                    ('missed', '真实缺失文件', '🔴', result.statistics.missed_count),
+                    ('failed', '扫描失败文件', '❌', result.statistics.failed_count),
+                    ('shielded', '已屏蔽文件', '🛡️', result.statistics.shielded_count),
+                    ('remapped', '已映射文件', '🔄', result.statistics.remapped_count)
+                ] %}
+                
+                {% for status, title, emoji, count in status_info %}
+                {% set download_url = download_links[status] if download_links and download_links[status] else None %}
+                <div class="download-item" style="margin-bottom: 16px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                    <div class="download-item__info" style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 1.5rem;">{{ emoji }}</span>
+                        <div>
+                            <div style="font-weight: 600; color: var(--color-text-primary);">{{ title }}</div>
+                            <div style="color: var(--color-text-secondary); font-size: 0.875rem;">共 {{ count }} 个文件</div>
+                        </div>
+                    </div>
+                    <div class="download-item__action">
+                        {% if download_url %}
+                        <a href="{{ download_url }}" 
+                           class="btn" 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           title="点击下载 {{ title }} 详细列表 (JSON 格式)">
+                            📥 下载详情
+                        </a>
+                        {% elif count > 0 %}
+                        <span style="color: var(--color-text-muted); font-size: 0.875rem;">详情未生成</span>
+                        {% else %}
+                        <span style="color: var(--color-text-muted); font-size: 0.875rem;">无文件</span>
                         {% endif %}
                     </div>
-                </li>
-            {% endfor %}
-            </ul>
-
-            {% if files|length > 100 %}
-            <button class="btn" onclick="showMore('{{ status }}', {{ files|length }})" aria-label="显示更多文件">
-                显示更多 (还有 {{ files|length - 100 }} 个)
-            </button>
-            {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="download-tip" style="margin-top: 24px; padding: 16px; background: var(--color-bg); border-radius: var(--radius-md); border-left: 3px solid var(--color-primary);">
+                <p style="margin: 0; color: var(--color-text-secondary); font-size: 0.875rem;">
+                    💡 <strong>说明：</strong>点击上方的"下载详情"按钮可获取对应状态类型的完整文件列表。
+                    下载的文件为 JSON 格式，包含每个文件的详细信息（路径、来源、归属、备注等）。
+                </p>
+            </div>
         </section>
-        {% endif %}
-        {% endfor %}
 
         <!-- Report Footer -->
         <footer class="report-footer">
             <p class="report-footer__text">缺失文件扫描工具 | 生成时间: {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
-            <p class="report-footer__tip">💡 提示：如需查看完整文件列表，请下载 JSON 报告</p>
+            <p class="report-footer__tip">💡 提示：点击上方统计数字可快速下载对应类型的详细文件列表</p>
         </footer>
     </main>
-
-    <!-- JavaScript for Interactive Features -->
-    <script>
-        /**
-         * File list lazy loading configuration
-         * Loads files in batches to improve performance
-         */
-        const CONFIG = {
-            LOAD_BATCH_SIZE: 100
-        };
-
-        // Track loaded count per status
-        const loadedCount = {};
-
-        /**
-         * Show more files for a given status
-         * @param {string} status - File status category
-         * @param {number} totalCount - Total number of files in this category
-         */
-        function showMore(status, totalCount) {
-            const listId = 'file-list-' + status;
-            const list = document.getElementById(listId);
-            const hiddenItems = list.querySelectorAll('.file-item--hidden');
-
-            // Initialize loaded count for this status
-            if (!loadedCount[status]) {
-                loadedCount[status] = 100;
-            }
-
-            // Calculate how many to show in this batch
-            const remainingCount = totalCount - loadedCount[status];
-            const batchSize = Math.min(CONFIG.LOAD_BATCH_SIZE, remainingCount);
-
-            // Show the next batch
-            let shown = 0;
-            for (let i = 0; i < hiddenItems.length && shown < batchSize; i++) {
-                hiddenItems[i].classList.remove('file-item--hidden');
-                shown++;
-            }
-
-            loadedCount[status] += shown;
-
-            // Update button text
-            const button = event.target;
-            const remaining = totalCount - loadedCount[status];
-
-            if (remaining > 0) {
-                button.textContent = `显示更多 (还有 ${remaining} 个)`;
-            } else {
-                button.classList.add('btn--hidden');
-            }
-        }
-    </script>
 </body>
 </html>
